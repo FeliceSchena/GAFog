@@ -1,25 +1,31 @@
 import statistics
 import json
 
+
 class Problem:
+
     def __init__(self, problem):
-        self.fog=problem['fog']
-        self.sensor=problem['sensor']
-        self.servicechain=problem['servicechain']
-        self.microservice=problem['microservice']
+        self.fog = problem['fog']
+        self.sensor = problem['sensor']
+        self.servicechain = problem['servicechain']
+        self.microservice = problem['microservice']
         if 'network' in problem:
-            self.network=problem['network']
+            self.network = problem['network']
+            self.K=int(self.get_SLA())
         else:
-            self.network=self.fake_network(self.fog)
-        self.maxrho=0.999
+            self.network = self.fake_network(self.fog)
+            self.K = 10
+        self.maxrho = 0.999
         self.compute_service_params()
-        self.compute_chain_params()
-    
+
+    def get_SLA(self):
+        key, val = next(iter(self.network.items()))
+        return dict(val).get("k")
     def fake_network(self, fognodes):
-        rv={}
+        rv = {}
         for f1 in fognodes:
             for f2 in fognodes:
-                rv[self.get_network_key(f1, f2)]={'delay': 0.0}
+                rv[self.get_network_key(f1, f2)] = {'delay': 0.0}
         return rv
 
     def get_capacity(self, f):
@@ -27,30 +33,42 @@ class Problem:
             return self.fog[f]['capacity']
         else:
             return 0
-    
+
     def __str__(self):
         return 'services: %s' % str(list(self.microservice.keys()))
-    
+
+    def get_sensor_lambda(self):
+        la_vect=[]
+        keys=dict(self.sensor).keys()
+        for i in keys:
+            la_vect.append(dict(dict(self.sensor).get(i)).get("lambda"))
+        return la_vect
+    def get_sensor_delay(self):
+        dly=[]
+        keys = dict(self.sensor).keys()
+        for i in keys:
+            dly.append(dict(dict(self.sensor).get(i)).get("delay"))
+        return dly
     def get_network_key(self, f1, f2):
-        return '%s-%s'%(f1, f2)
+        return '{}-{}'.format(f1, f2)
 
     def get_delay(self, f1, f2):
-        k=self.get_network_key(f1, f2)
+        z = self.get_network_key(f1, f2)
         # search (f1, f2)
-        if k in self.network:
-            return self.network[k]
+        if z in self.network:
+            return self.network[z]
         else:
             # if not, create automatically an entry with delay=0 for f1, f1
-            if f1==f2:
+            if f1 == f2:
                 k = self.get_network_key(f1, f1)
-                rv={'delay': 0.0}
-                self.network[k]=rv
+                rv = {'delay': 0.0}
+                self.network[k] = rv
                 return rv
             else:
                 # otherwise look for reverse mapping
-                k=self.get_network_key(f2, f1)
+                k = self.get_network_key(f2, f1)
                 if k in self.network:
-                    self.network[self.get_network_key(f1, f2)]=self.network[k]
+                    self.network[self.get_network_key(f1, f2)] = self.network[k]
                     return self.network[k]
                 else:
                     # distance not found!
@@ -58,37 +76,19 @@ class Problem:
 
     def compute_service_params(self):
         for ms in self.microservice:
-            self.microservice[ms]['rate']=1.0/self.microservice[ms]['meanserv']
-            self.microservice[ms]['cv']=self.microservice[ms]['stddevserv']/self.microservice[ms]['meanserv']
-                
+            self.microservice[ms]['rate'] = 1.0 / self.microservice[ms]['meanserv']
+            self.microservice[ms]['cv'] = self.microservice[ms]['stddevserv'] / self.microservice[ms]['meanserv']
+
     def get_servicechain_list(self):
         return list(self.servicechain.keys())
-        
+
     def get_fog_list(self):
         return list(self.fog.keys())
-    
+
     def get_service_for_sensor(self, s):
-        sc=self.sensor[s]['servicechain']
+        sc = self.sensor[s]['servicechain']
         return self.servicechain[sc]['services'][0]
 
-    def compute_chain_params(self):
-        tot_weight=0.0
-        for sc in self.servicechain:
-            lam=0.0
-            for s in self.sensor:
-                if self.sensor[s]['servicechain'] == sc:
-                    lam += self.sensor[s]['lambda']
-            self.servicechain[sc]['lambda']=lam
-            # intialize also lambda for each microservice
-            for s in self.servicechain[sc]['services']:
-                self.microservice[s]['lambda']=lam
-            # initilize weight of service chain if missing
-            if 'weight' not in self.servicechain[sc]:
-                self.servicechain[sc]['weight']=lam
-            tot_weight+=self.servicechain[sc]['weight']
-        # normalize weights
-        for sc in self.servicechain:
-            self.servicechain[sc]['weight'] /= tot_weight
 
     def get_microservice_list(self, sc=None):
         if sc is None:
@@ -111,14 +111,17 @@ class Problem:
     def get_nfog(self):
         return len(self.fog)
 
+    def get_nsensor(self):
+        return len(self.sensor)
+
     def get_nservice(self):
         return len(self.microservice)
 
+
 if __name__ == '__main__':
-    with open('sample_input.json',) as f:
+    with open('sample_input.json', ) as f:
         data = json.load(f)
-    p=Problem(data)
+    p = Problem(data)
     print(p)
     for ms in p.get_microservice_list():
         print(ms, p.get_microservice(ms))
-

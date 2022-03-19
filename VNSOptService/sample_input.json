@@ -1,0 +1,63 @@
+{
+    "fog": {
+        "F1": {
+            "capacity": 1.0
+        },
+        "F2": {
+            "capacity": 1.5
+        },
+        "F3": {
+            "capacity": 1.2
+        },
+        "F4": {
+            "capacity": 1.8
+        }
+    },
+    "sensor": {
+        "S1": {
+            "lambda": 0.4,
+            "delay": 0.2
+        },
+        "S2": {
+            "lambda": 0.4,
+            "delay": 0.8
+        },
+        "S3": {
+            "lambda": 0.5,
+            "delay": 0.6
+        }
+    },
+    "servicechain": {
+        "SC1": {
+            "services": [
+                "MS1_1",
+                "MS1_2"
+            ]
+        },
+        "SC2": {
+            "services": [
+                "MS2_1"
+            ]
+        }
+    },
+    "microservice": {
+        "MS1_1": {
+            "meanserv": 0.2,
+            "stddevserv": 0.02
+        },
+        "MS1_2": {
+            "meanserv": 0.1,
+            "stddevserv": 0.01
+        },
+        "MS2_1": {
+            "meanserv": 0.1,
+            "stddevserv": 0.01
+        }
+    },
+    "network": {
+        "F1-F2": {
+            "delay": 0.1,
+            "k": 2
+        }
+    }
+}
