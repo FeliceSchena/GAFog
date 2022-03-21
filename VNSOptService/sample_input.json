@@ -1,57 +1,70 @@
 {
     "fog": {
         "F1": {
-            "capacity": 1.0
+            "to_c1": 0.2,
+            "to_c2": 0.5,
+            "to_c3": 0.8,
+            "mu": 2.0
         },
         "F2": {
-            "capacity": 1.5
+            "to_c1": 0.7,
+            "to_c2": 0.1,
+            "to_c3": 0.8,
+            "mu": 1.5
+
         },
         "F3": {
-            "capacity": 1.2
+            "to_c1": 0.6,
+            "to_c2": 0.4,
+            "to_c3": 0.3,
+            "mu": 2.4
         },
         "F4": {
-            "capacity": 1.8
+            "to_c1": 0.01,
+            "to_c2": 0.6,
+            "to_c3": 0.8,
+            "mu": 1
         }
     },
     "sensor": {
         "S1": {
             "lambda": 0.4,
-            "delay": 0.2
+            "to_f1": 0.3,
+            "to_f2": 0.5,
+            "to_f3": 0.7,
+            "to_f4": 0.15
         },
         "S2": {
-            "lambda": 0.4,
-            "delay": 0.8
+            "lambda": 0.7,
+            "to_f1": 0.2,
+            "to_f2": 0.6,
+            "to_f3": 0.1,
+            "to_f4": 0.9
         },
         "S3": {
             "lambda": 0.5,
-            "delay": 0.6
+            "to_f1": 0.45,
+            "to_f2": 0.32,
+            "to_f3": 0.1,
+            "to_f4": 0.15
+        },
+        "S4": {
+            "lambda": 0.8,
+            "to_f1": 0.15,
+            "to_f2": 0.92,
+            "to_f3": 0.6,
+            "to_f4": 0.65
         }
     },
-    "servicechain": {
-        "SC1": {
-            "services": [
-                "MS1_1",
-                "MS1_2"
-            ]
+    "clouds": {
+        "C1": {
+
         },
-        "SC2": {
-            "services": [
-                "MS2_1"
-            ]
-        }
-    },
-    "microservice": {
-        "MS1_1": {
-            "meanserv": 0.2,
-            "stddevserv": 0.02
+        "C2": {
+
         },
-        "MS1_2": {
-            "meanserv": 0.1,
-            "stddevserv": 0.01
-        },
-        "MS2_1": {
-            "meanserv": 0.1,
-            "stddevserv": 0.01
+        "C3": {
+
         }
     },
     "network": {

@@ -3,11 +3,14 @@ from math import sqrt
 import json
 
 "This was the fogindividual inside the ga"
+
+
 class OptSolution:
     """
             :param mapping: TODO
             :param problem: Contains the problem structure readed from json
     """
+
     def __init__(self, mapping, problem):
         print("Inizializzazione attributi")
         self.problem = problem
@@ -25,6 +28,7 @@ class OptSolution:
             Parameters:
                 :param rv: contains
         """
+
     def get_service_idx(self):
         rv = {}
         i = 0
@@ -36,15 +40,16 @@ class OptSolution:
     def __str__(self):
         return str(self.mapping)
 
-
     def get_service_list(self, fidx):
         rv = []
         for s in range(self.nsrv):
             if self.mapping[s] == fidx:
                 rv.append(self.service[s])
         return rv
+
     """ Compute di fog status from the json read
     """
+
     def compute_fog_status(self):
         # for each fog node
         for fidx in range(self.nf):
