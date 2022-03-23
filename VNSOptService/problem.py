@@ -36,6 +36,13 @@ class Problem:
             mu_vect.append(self.fog.get(i).get("mu"))
         return mu_vect
 
+    def get_costs(self):
+        c_j=[]
+        keys=self.fog.keys()
+        for i in keys:
+            c_j.append(self.fog.get(i).get("c"))
+        return c_j
+
     def get_capacity(self, f):
         if f in self.fog:
             return self.fog[f]['capacity']
