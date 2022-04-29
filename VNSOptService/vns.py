@@ -1,6 +1,5 @@
 import argparse
 import json
-from operator import index
 from random import randint
 import numpy as np
 
@@ -24,9 +23,47 @@ class VNS:
         rv = np.array(vect)
         # debugging print
         return rv
+    def allocate_sensor(self, f, s):
+        self.solution[f, s] = 1
+    # swap the two sensors
+    def swap_sensors(self, f1, f2, idx_snsr_f1, idx_snsr_f2):
+        self.solution[idx_snsr_f1, f1] = 0
+        self.solution[idx_snsr_f1, f2] = 1
+        self.solution[idx_snsr_f2, f2] = 0
+        self.solution[idx_snsr_f2, f1] = 1
+
+    def Neigborhood_change(self,c_sol,k):
+        if c_sol.fobj < self.optsolution.fobj:
+            self.optsolution.fobj=c_sol.fobj
+            k=1
+        else:
+            k=k+1
+        return k
 
     def VND(self):
-        pass
+        c_solution=OptSolution(self.problem)
+        k = 1
+        while k < 3:
+            if k==1:
+            #perform all possible swaps
+                for i in range(self.problem.get_nfog()):
+                    for j in range(self.problem.get_nsnsr()):
+                        if self.solution[i, j] == 1:
+                            for k in range(self.problem.get_nsnsr()):
+                                if self.solution[i, k] == 0:
+                                    self.swap_sensors(i, j, k, i)
+                                    k = self.Neigborhood_change(c_solution, k)
+            else:
+                count=self.problem.get_nsnsr()
+                #perform all possible allocating sensors to fog nodes
+                for i in range(self.problem.get_nfog()):
+                    for j in range(self.problem.get_nsnsr()):
+                        if self.solution[i, j] == 0:
+                            if count>0:
+                                self.allocate_sensor(i, j)
+                                count-=1
+                        k = self.neighborhood_change(c_solution, k)
+
 
     # variation of neighborhood search algorithm for minimize opt_sol.fobj
     def vns(self):
@@ -44,12 +81,7 @@ class VNS:
                 iter=0
 
 
-    # swap the two sensors
-    def swap_sensors(self, f1, f2, idx_snsr_f1, idx_snsr_f2):
-        self.solution[idx_snsr_f1, f1] = 0
-        self.solution[idx_snsr_f1, f2] = 1
-        self.solution[idx_snsr_f2, f2] = 0
-        self.solution[idx_snsr_f2, f1] = 1
+
 
     # select randomly a fog node f1, pick the farthest sensor from f1, swap with the closest sensor inside the
     def structure1(self):
