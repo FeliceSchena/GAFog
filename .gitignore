@@ -9,6 +9,7 @@ ChainOptService/__pycache__/*
 VNSOptService/__pycache__/*
 CharactService/app/__pycache__/*
 CharactService/app/venv/*
+ChainOptService/*
 ChainOptService/venv/*
 GraphOptService/__pycache__/*
 ProblemGen/__pycache__/*
