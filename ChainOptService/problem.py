@@ -117,8 +117,8 @@ class Problem:
     def get_nfog(self):
         return len(self.fog)
 
-    def get_nservice(self):
-        return len(self.microservice)
+    def get_nsnsr(self):
+        return len(self.sensor)
 
 if __name__ == '__main__':
     with open('sample_input.json',) as f:
