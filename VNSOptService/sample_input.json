@@ -1,80 +1,63 @@
 {
     "fog": {
         "F1": {
-            "to_c1": 0.2,
-            "to_c2": 0.5,
-            "to_c3": 0.8,
-            "mu": 0.8,
-            "c": 4
+            "capacity": 1.0
         },
         "F2": {
-            "to_c1": 0.7,
-            "to_c2": 0.1,
-            "to_c3": 0.8,
-            "mu": 0.2,
-            "c": 1
-
+            "capacity": 1.5
         },
         "F3": {
-            "to_c1": 0.6,
-            "to_c2": 0.4,
-            "to_c3": 0.3,
-            "mu": 0.5,
-            "c": 2
-        },
-        "F4": {
-            "to_c1": 0.01,
-            "to_c2": 0.6,
-            "to_c3": 0.8,
-            "mu": 0.95,
-            "c": 5
+            "capacity": 1.25
         }
     },
     "sensor": {
         "S1": {
+            "servicechain": "SC1",
             "lambda": 0.4,
-            "to_f1": 0.3,
-            "to_f2": 0.5,
-            "to_f3": 0.7,
-            "to_f4": 0.15
-        },
-        "S2": {
-            "lambda": 0.7,
             "to_f1": 0.2,
             "to_f2": 0.6,
-            "to_f3": 0.1,
-            "to_f4": 0.9
+            "to_f3": 0.45
+        },
+        "S2": {
+            "servicechain": "SC1",
+            "lambda": 0.4,
+            "to_f1": 0.9,
+            "to_f2": 0.1,
+            "to_f3": 0.21
         },
         "S3": {
+            "servicechain": "SC2",
             "lambda": 0.5,
-            "to_f1": 0.45,
-            "to_f2": 0.32,
-            "to_f3": 0.1,
-            "to_f4": 0.15
-        },
-        "S4": {
-            "lambda": 0.8,
-            "to_f1": 0.15,
-            "to_f2": 0.92,
-            "to_f3": 0.6,
-            "to_f4": 0.65
+            "to_f1": 0.1,
+            "to_f2": 0.9,
+            "to_f3": 0.05
         }
     },
-    "clouds": {
-        "C1": {
-
+    "servicechain": {
+        "SC1": {
+            "services": ["MS1_1", "MS1_2"]
         },
-        "C2": {
-
-        },
-        "C3": {
-
+        "SC2": {
+            "services": ["MS2_1"]
         }
     },
-    "network": {
+    "microservice": {
+        "MS1_1": {
+            "meanserv": 0.2,
+            "stddevserv": 0.02
+        },
+        "MS1_2": {
+            "meanserv": 0.1,
+            "stddevserv": 0.01
+        },
+        "MS2_1": {
+            "meanserv": 0.1,
+            "stddevserv": 0.01
+        }
+    },
+    "network":{
         "F1-F2": {
-            "delay": 0.1,
-            "k": 2
+            "delay": 0.1
         }
     }
 }

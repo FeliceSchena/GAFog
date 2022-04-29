@@ -2,32 +2,19 @@ from problem import Problem
 from math import sqrt
 import json
 
-"This was the fogindividual inside the ga"
-
 
 class OptSolution:
-    """
-            :param mapping: TODO
-            :param problem: Contains the problem structure readed from json
-    """
 
-    def __init__(self, mapping, problem):
-        print("Inizializzazione attributi")
+    def __init__(self, problem):
         self.problem = problem
         self.nf = problem.get_nfog()
         self.fognames = problem.get_fog_list()
         self.nsrv = problem.get_nservice()
         self.service = problem.get_microservice_list()
         self.serviceidx = self.get_service_idx()
-        self.mapping = mapping
-        # È un dizionario di none
         self.fog = [None] * self.nf
         self.compute_fog_status()
         self.resptimes = None
-        """
-            Parameters:
-                :param rv: contains
-        """
 
     def get_service_idx(self):
         rv = {}
@@ -38,17 +25,13 @@ class OptSolution:
         return rv
 
     def __str__(self):
-        return str(self.mapping)
+        return (str(self.mapping))
 
     def get_service_list(self, fidx):
         rv = []
         for s in range(self.nsrv):
-            if self.mapping[s] == fidx:
-                rv.append(self.service[s])
+            rv.append(self.service[s])
         return rv
-
-    """ Compute di fog status from the json read
-    """
 
     def compute_fog_status(self):
         # for each fog node
@@ -98,6 +81,13 @@ class OptSolution:
             }
             # print(self.fog[fidx])
 
+    def mm1_time(self, lam, mu):
+        # classical M/M/1 formula
+        if mu > lam:
+            return 1 / (mu - lam)
+        else:
+            return (1 / mu) * (1 / (1 - self.problem.maxrho))
+
     def mg1_time(self, lam, mu, cv):
         if mu == 0:
             return 0
@@ -118,7 +108,7 @@ class OptSolution:
             # for each service
             for s in self.problem.get_microservice_list(sc=sc):
                 # get fog node id from service name
-                fidx = self.mapping[self.serviceidx[s]]
+                fidx = self.serviceidx[s]
                 fname = self.fognames[fidx]
                 # add tresp for node where the service is located
                 tr += self.fog[fidx]['tresp']
@@ -131,7 +121,7 @@ class OptSolution:
             rv[sc] = {"resptime": tr}
         return rv
 
-    def sobj_func(self):
+    def obj_func(self):
         tr_tot = 0.0
         if self.resptimes is None:
             self.resptimes = self.compute_performance()
@@ -142,29 +132,27 @@ class OptSolution:
     def dump_solution(self):
         print('dumping solution')
         if self.resptimes is None:
-            self.sobj_func()
+            self.obj_func()
         rv = {'performance': self.resptimes, 'microservice': {}, 'sensor': {}}
-        print(self.mapping)
-        print(self.sobj_func())
+        print( self.obj_func())
         for msidx in range(self.nsrv):
-            rv['microservice'][self.service[msidx]] = self.fognames[self.mapping[msidx]]
+            rv['microservice'][self.service[msidx]] = self.fognames[msidx]
         for s in self.problem.sensor:
             msidx = self.serviceidx[self.problem.get_service_for_sensor(s)]
-            rv['sensor'][s] = self.fognames[self.mapping[msidx]]
+            rv['sensor'][s] = self.fognames[msidx]
         print(rv)
         return rv
+
+
 
 
 if __name__ == "__main__":
     with open('sample_input.json', ) as f:
         data = json.load(f)
-    print('problem object')
+    print('problem objct')
     p = Problem(data)
     print(p)
-    with open('sample_output.txt', 'w') as fo:
-        for mapping in [[0, 1, 1], [1, 1, 0]]:
-            print('mapping object ', mapping)
-            i = OptSolution(mapping, p)
-            # print('obj_func= ' + str(i.obj_func()))
-            fo.write(json.dumps(i.dump_solution(), indent=2))
-            print(json.dumps(i.dump_solution(), indent=2))
+    i = OptSolution(p)
+    # print('obj_func= ' + str(i.obj_func()))
+    print(json.dumps(i.dump_solution(), indent=2))
+

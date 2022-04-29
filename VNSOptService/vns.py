@@ -1,8 +1,6 @@
 import argparse
 import json
-import re
-import time
-import warnings
+from operator import index
 from random import randint
 import numpy as np
 
@@ -10,183 +8,124 @@ from optsolution import OptSolution
 
 from VNSOptService.problem import Problem
 
-"""
-:parameter K: coefficiente moltiplicativo di tsla
-:parameter mu: tempo di risposta ovvero funzione obiettivo tr
-:parameter delta: delay medio della network
-:return tsla:
-"""
 
-
-class Vns:
-
-    def __init__(self, problem, x_ij, y_jk):
-        """
-
-        :param problem: the problem to analyze loaded from Problem class
-        :param x_ij: decision variable for fog & sensor
-        :param y_jk: decision variable for fog & cloud
-        """
+class VNS:
+    def __init__(self, problem):
         self.problem = problem
-        self.x_ij = x_ij
-        self.y_jk = y_jk
+        self.optsolution = OptSolution(problem)
+        self.solution = self.initialize_solution()
 
-    def compute_sla(self):
+    def get_sensor_latency(self):
+        rv = []
+        #
+        vect = []
+        for i in range(self.problem.get_nsnsr()):
+            vect.append(self.problem.get_sensor_delay("S" + str(i + 1)))
+        rv = np.array(vect)
+        # debugging print
+        return rv
+
+    def VND(self):
+        pass
+
+    # variation of neighborhood search algorithm for minimize opt_sol.fobj
+    def vns(self):
+        iter = 0
+        # initialize best solution
+        while iter < 2:
+            neighbor_sel = randint(0, 1)
+            if neighbor_sel == 0:
+                self.structure1()
+                iter += 1
+            else:
+                self.structure2()
+                iter += 1
+            if self.VND()==1:
+                iter=0
+
+
+    # swap the two sensors
+    def swap_sensors(self, f1, f2, idx_snsr_f1, idx_snsr_f2):
+        self.solution[idx_snsr_f1, f1] = 0
+        self.solution[idx_snsr_f1, f2] = 1
+        self.solution[idx_snsr_f2, f2] = 0
+        self.solution[idx_snsr_f2, f1] = 1
+
+    # select randomly a fog node f1, pick the farthest sensor from f1, swap with the closest sensor inside the
+    def structure1(self):
+        snsr_latency = self.get_sensor_latency()
+        # delay of allocated sensors
+        snsr_latency_on = np.multiply(self.get_sensor_latency(), self.solution)
+        # randomly select a fog node f1
+        f1 = randint(0, (self.problem.get_nfog() - 1))
+        while (np.sum(snsr_latency_on[:, f1]) == 0):
+            f1 = randint(0, (self.problem.get_nfog() - 1))
+        # the fartest sensor allocated to f1
+        idx_snsr_f1 = np.argmax(snsr_latency_on[:, f1])
+        # find index of the fog node f2 with the closest sensor that is different from from idx_snsr_f1
+        masked_b = np.ma.masked_equal(snsr_latency[idx_snsr_f1, :], snsr_latency[idx_snsr_f1, f1], copy=False)
+        f2 = np.argmin(masked_b)
+        # find the closest sensor inside f2
+        temp = []
+        for i in range(len(snsr_latency_on[:, f2])):
+            if snsr_latency_on[i, f2] != 0:
+                temp.append(snsr_latency[i, f1])
+            else:
+                temp.append(0)
+        masked_a = np.ma.masked_equal(temp, 0.0, copy=False)
+        idx_snsr_f2 = np.argmin(masked_a)
+        # swap the two sensors
+        self.swap_sensors(f1, f2, idx_snsr_f1, idx_snsr_f2)
+
+    def structure2(self):
+        load = []
+        incoming = []
+        snsr_latency_on = np.multiply(self.get_sensor_latency(), self.solution)
+        for i in self.problem.get_fog_list():
+            load.append(self.problem.fog[i]["capacity"])
+        nfog = self.problem.get_nfog()
+        for j in self.problem.sensor:
+            incoming.append(self.problem.sensor[j]["lambda"])
+        for i in range(nfog):
+            load[i] = sum(self.solution[:, i] * incoming[i]) / load[i]
+        r = sum(load) / nfog
+        if max(load) > r:
+            idx_1 = randint(0, nfog - 1)
+            f1 = load[idx_1]
+        while f1 < r:
+            idx_1 = randint(0, nfog - 1)
+            f1 = load[idx_1]
+        idx_snsr_f1 = np.argmax(snsr_latency_on[:, idx_1])
+        # choose f2 with  min load
+        masked_a = np.ma.masked_equal(self.get_sensor_latency()[idx_snsr_f1, :],
+                                      self.get_sensor_latency()[idx_snsr_f1, idx_1], copy=False)
+        f2 = np.argmin(masked_a)
+        self.solution[idx_snsr_f1, f2] = 1
+        self.solution[idx_snsr_f1, idx_1] = 0
+
+    def find_closest(self):
+
+        max = np.argmax()
+
+    def initialize_solution(self):
         """
-            Compute de Service Level Agreement at response time
-            :return t_SLA:
-            """
-        k = self.problem.get_SLA()
-        delta = self.problem.network.get("F1-F2").get("delay")
-        # compute service time agreement
-        t_sla = k
-        return t_sla
-
-
-    def compute_sensorfog_delay(self):
-        """ Compute the t_net_sf time
-                :return t_net_sf:
-            """
-        r, c = self.x_ij.shape
-        t_sf = 0
-        la_vect = self.problem.get_sensor_lambda()
-        delay_list = self.problem.get_sensor_delay()
-        t_sf = sum(la_vect)
-        sum_of_product = float(0)
-        for i in range(r):
-            for j in range(c):
-                sum_of_product += la_vect[j] * self.x_ij[i][j] * delay_list[j][i]
-        return (1 / t_sf) * sum_of_product
-
-    def get_fog_lambda(self, i):
-        """ Compute the incoming request rate at fog node i
-               :param i: fog node number
-               :return: sum of the outcoming request rate from sensor assigned to node
-           """
-        sum = 0
-        keys = self.problem.sensor.keys()
-        z = 0
-        for j in keys:
-            sum += self.problem.sensor.get(j).get("lambda") * self.x_ij[i - 1][z]
-            z += 1
-        return float(sum)
-
-    def compute_fogtime(self):
-        """Compute the fog time
-           :returns t_fc, la_vect: Fog cloud time and lamba incoming rqst vector
-           """
-        t_fc = 0
-        la_vect = []
-        for i in self.problem.fog.keys():
-            var = int("".join(filter(str.isdigit, i)))
-            la_vect.append(self.get_fog_lambda(var))
-            t_fc += self.get_fog_lambda(var)
-        return t_fc, la_vect
-
-    def compute_fogcloud_delay(self):
+        :param problem: the problem to analyze loaded from Problem class
+        :return: xij
         """
-        Compute the delay from fog to cloud
-        :return t_fc: fog to cloud latency
-        """
-        sf = 0
-        r, c = self.y_jk.shape
-        t_fc, la_vect = self.compute_fogtime()
-        delay_vect = self.problem.get_fog_delay()
-        for i in range(r):
-            for k in range(c):
-                sf += la_vect[i] * self.y_jk[i][k] * delay_vect[i][k]
-        return sf * (1 / t_fc)
-
-    def compute_proc_time(self):
-        """
-        Computing processing time for the actual configuration of network
-        :return tproc: Time for processing
-        """
-        t_fc, la_vect = self.compute_fogtime()
-        mu_vect = self.problem.get_mu()
-        sf = 0
-        for i in range(len(la_vect)):
-            try:
-                sf += la_vect[i] * (1 / (mu_vect[i] - la_vect[i]))
-            except:
-                warnings.warn("Divisione per zero")
-        return (1 / t_fc) * sf
-
-    def sobj_func(self, tnet_sf, tnet_fc, tproc):
-        """
-          Compute the second obj function of the math problem.
-          :param tnet_sf: computed from sensorfog_delay() represents the time from sensor to fog
-          :param tnet_fc: computed from fogcloud_delay() represents the time from fog to cloud
-          :param tproc: computed from proc_time() represents the processing time of the network
-          :return t_r: sum of the tnet_sf,tnet_fc,tproc
-          """
-        if tnet_sf is None:
-            tnet_sf = self.compute_sensorfog_delay()
-        if tnet_fc is None:
-            tnet_fc = self.compute_fogcloud_delay()
-        if tproc is None:
-            tproc = self.compute_proc_time()
-        return tnet_sf + tnet_fc + tproc
-
-    def fobj_func(self, e, c):
-        """
-        Compute the first obj function
-        :param e: Location of fog nodes
-        :param c: cost of Fog_j
-        :return: sum of product between costs of Fog_j and location of fog node
-        """
-        return sum(np.multiply(e, self.problem.get_costs()))
-
-
-
-def allocate(solution):
-    """
-    Initiate the solution matrix passed by arguments with at most 1 elements for column
-    :param solution: the initialized solution for the first iteration
-    :return solution: return solution matrix with the assignement updated
-    """
-    i, dim = solution.shape
-    for k in range(i):
-        solution[k][randint(0, dim) % dim] = 1
-    return solution
-
-
-def set_ej(solution,e):
-    """
-    function that calculate the sum of the turned on fog
-    :param solution: current assignement of the fog to the cloud
-    :param e: the vector of Ej
-    :return: For all cells of e the rows sum of the solution
-    """
-    r, c = solution.shape
-    for i in range(r):
-        e[i]=sum(solution[i])
-    return e
-
-def init_decision_variable(problem):
-    """
-    :param problem: the problem to analyze loaded from Problem class
-    :return: xij,yij,ej
-    """
-    e_j = np.zeros(problem.get_nfog())
-    sf_solution = np.zeros((problem.get_nsensor(), problem.get_nfog()))
-    fc_solution = np.zeros((problem.get_nfog(), problem.get_ncloud()))
-    allocate(sf_solution)
-    allocate(fc_solution)
-    e_j = set_ej(fc_solution,e_j)
-    return sf_solution, fc_solution, e_j
+        sf_solution = np.zeros((self.problem.get_nsnsr(), self.problem.get_nfog()))
+        # allocate the sensor to fog nodes with the minimum delay
+        for i in range(self.problem.get_nsnsr()):
+            vect = self.problem.get_sensor_delay("S" + str(i + 1))
+            sf_solution[i][np.where(vect == np.min(vect))] = 1
+        return sf_solution
 
 
 def solve_problem(data):
     tnet_sf = tnet_fc = t_proc = None
     problem = Problem(data)
-    x_ij, y_ij, e_j = init_decision_variable(problem)
-    print("Initiate variable \n Sensori ai Fog: \n" + str(x_ij) + "\n Fog ai cloud: \n" + str(y_ij) +"\n Fog accesi: \n"+str(e_j))
-    vns = Vns(problem, x_ij, y_ij)
-    vns.compute_sla()
-    t_r = vns.sobj_func(tnet_sf, tnet_fc, t_proc)
-    c=vns.fobj_func(e_j,problem.get_costs())
-    print("Costs: \n"+str(c)+"\nResponse time: \n"+str(t_r))
+    vns = VNS(problem)
+    vns.structure1()
+    print(vns.solution)
 
 
 if __name__ == '__main__':
@@ -196,4 +135,4 @@ if __name__ == '__main__':
     fname = args.file if args.file is not None else 'sample_input.json'
     with open(fname, ) as f:
         data = json.load(f)
-        solve_problem(data)
+    solve_problem(data)
