@@ -1,6 +1,7 @@
 import argparse
 import json
 from random import randint
+import itertools
 import numpy as np
 
 from optsolution import OptSolution
@@ -15,44 +16,67 @@ class VNS:
         self.solution = self.initialize_solution()
 
     def get_sensor_latency(self):
+        """
+        Call the problem.get_sensor_latency() method, that returns the latency of the sensor to every fog node.
+        :return: the latency of every sensor as multidimensional np.array
+        """
         rv = []
-        #
         vect = []
         for i in range(self.problem.get_nsnsr()):
             vect.append(self.problem.get_sensor_delay("S" + str(i + 1)))
         rv = np.array(vect)
-        # debugging print
         return rv
+
     def allocate_sensor(self, f, s):
-        self.solution[f, s] = 1
-    # swap the two sensors
+        """
+        Allocate a sensor to a fog node.
+        :param f: fog node index
+        :param s: sensor index
+        :return: the vns.solution updated
+        """
+        #check if the sum of the 1 inside the matrix is less than the number of sensors
+        if np.sum(self.solution[:, f]) < self.problem.get_nsnsr():
+            self.solution[s, f] = 1
+        else:
+            #randomly allocate a sensor to the fog node and remove randomly the sensor from the solution
+                r = randint(0, self.problem.get_nsnsr() - 1)
+                self.solution[r, f] = 0
+                self.solution[s, f] = 1
+
     def swap_sensors(self, f1, f2, idx_snsr_f1, idx_snsr_f2):
+        """
+        Swap sensors between two fog nodes.
+        :param f1: fog node 1 index
+        :param f2: fog node 2 index
+        :param idx_snsr_f1: sensor index of fog node 1
+        :param idx_snsr_f2: sensor index of fog node 2
+        :return: vns.solution updated
+        """
         self.solution[idx_snsr_f1, f1] = 0
         self.solution[idx_snsr_f1, f2] = 1
         self.solution[idx_snsr_f2, f2] = 0
         self.solution[idx_snsr_f2, f1] = 1
 
     def Neigborhood_change(self,c_sol,k):
-        if c_sol.fobj < self.optsolution.fobj:
-            self.optsolution.fobj=c_sol.fobj
+        if c_sol.obj_func() < self.optsolution.obj_func():
+            self.solution=c_sol
             k=1
         else:
             k=k+1
         return k
 
     def VND(self):
-        c_solution=OptSolution(self.problem)
+        c_solution = OptSolution(self.problem)
         k = 1
         while k < 3:
             if k==1:
-            #perform all possible swaps
-                for i in range(self.problem.get_nfog()):
-                    for j in range(self.problem.get_nsnsr()):
-                        if self.solution[i, j] == 1:
-                            for k in range(self.problem.get_nsnsr()):
-                                if self.solution[i, k] == 0:
-                                    self.swap_sensors(i, j, k, i)
-                                    k = self.Neigborhood_change(c_solution, k)
+                # all possible permutation of self.solution
+                perm = itertools.permutations(self.solution)
+                for i in perm:
+                    print (*i)
+                    c_solution = i
+                    #k = self.Neigborhood_change(c_solution,k)
+
             else:
                 count=self.problem.get_nsnsr()
                 #perform all possible allocating sensors to fog nodes
@@ -62,7 +86,7 @@ class VNS:
                             if count>0:
                                 self.allocate_sensor(i, j)
                                 count-=1
-                        k = self.neighborhood_change(c_solution, k)
+                        k = self.Neigborhood_change(c_solution, k)
 
 
     # variation of neighborhood search algorithm for minimize opt_sol.fobj
@@ -85,6 +109,10 @@ class VNS:
 
     # select randomly a fog node f1, pick the farthest sensor from f1, swap with the closest sensor inside the
     def structure1(self):
+        """
+        @:param self: the object vns
+        :return: swap the closest sensor with the farthest sensor
+        """
         snsr_latency = self.get_sensor_latency()
         # delay of allocated sensors
         snsr_latency_on = np.multiply(self.get_sensor_latency(), self.solution)
@@ -110,20 +138,30 @@ class VNS:
         self.swap_sensors(f1, f2, idx_snsr_f1, idx_snsr_f2)
 
     def structure2(self):
+        """
+        The structure2 use the load of each fog node to select the fog node with the highest load
+        @:param self: the object vns
+        :return:
+        """
         load = []
         incoming = []
         snsr_latency_on = np.multiply(self.get_sensor_latency(), self.solution)
+        # vector of load of each fog node
         for i in self.problem.get_fog_list():
             load.append(self.problem.fog[i]["capacity"])
         nfog = self.problem.get_nfog()
+        # vector of incoming requests of each fog node
         for j in self.problem.sensor:
             incoming.append(self.problem.sensor[j]["lambda"])
+        #calulate the R of each fog node
         for i in range(nfog):
             load[i] = sum(self.solution[:, i] * incoming[i]) / load[i]
         r = sum(load) / nfog
+        # find the fog node with the highest load
         if max(load) > r:
             idx_1 = randint(0, nfog - 1)
             f1 = load[idx_1]
+        # find the fog node with the lowest load and the farthest sensor from the selected fog node
         while f1 < r:
             idx_1 = randint(0, nfog - 1)
             f1 = load[idx_1]
@@ -135,12 +173,9 @@ class VNS:
         self.solution[idx_snsr_f1, f2] = 1
         self.solution[idx_snsr_f1, idx_1] = 0
 
-    def find_closest(self):
-
-        max = np.argmax()
-
     def initialize_solution(self):
         """
+        Initialize the solution of the VNS allocating sensors to nearest fog nodes
         :param problem: the problem to analyze loaded from Problem class
         :return: xij
         """
@@ -157,7 +192,7 @@ def solve_problem(data):
     problem = Problem(data)
     vns = VNS(problem)
     vns.structure1()
-    print(vns.solution)
+    print(vns.vns())
 
 
 if __name__ == '__main__':

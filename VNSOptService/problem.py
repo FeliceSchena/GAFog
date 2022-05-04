@@ -31,6 +31,7 @@ class Problem:
             fog=str("to_"+str(lower(j)))
             delay_vector.append(dict(self.sensor.get(s)).get(fog))
         return np.array(delay_vector)
+
     def get_capacity(self, f):
         if f in self.fog:
             return self.fog[f]['capacity']
