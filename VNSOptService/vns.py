@@ -73,8 +73,8 @@ class VNS:
                 # all possible permutation of self.solution
                 perm = itertools.permutations(self.solution)
                 for i in perm:
-                    print (*i)
                     c_solution = i
+                    k=k+1
                     #k = self.Neigborhood_change(c_solution,k)
 
             else:
@@ -87,22 +87,26 @@ class VNS:
                                 self.allocate_sensor(i, j)
                                 count-=1
                         k = self.Neigborhood_change(c_solution, k)
+                        k = k + 1
+        return 0
 
 
     # variation of neighborhood search algorithm for minimize opt_sol.fobj
-    def vns(self):
+    def GVNS(self):
         iter = 0
         # initialize best solution
         while iter < 2:
-            neighbor_sel = randint(0, 1)
-            if neighbor_sel == 0:
+            if randint(0,1) == 0:
+                print("\n Struttura utilizzata: 1-Swap sensors \n")
                 self.structure1()
                 iter += 1
             else:
+                print("\n Struttura utilizzata: 2-allocation sensors \n")
                 self.structure2()
                 iter += 1
             if self.VND()==1:
                 iter=0
+        return self.solution
 
 
 
@@ -191,8 +195,9 @@ def solve_problem(data):
     tnet_sf = tnet_fc = t_proc = None
     problem = Problem(data)
     vns = VNS(problem)
-    vns.structure1()
-    print(vns.vns())
+    vns.GVNS()
+    print("Solution: \n"+ str(vns.solution))
+
 
 
 if __name__ == '__main__':
