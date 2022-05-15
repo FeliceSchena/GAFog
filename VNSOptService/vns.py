@@ -5,8 +5,7 @@ import itertools
 import numpy as np
 
 from optsolution import OptSolution
-
-from VNSOptService.problem import Problem
+from problem import Problem
 
 
 class VNS:
@@ -15,18 +14,6 @@ class VNS:
         self.optsolution = OptSolution(problem)
         self.solution = self.initialize_solution()
 
-    def get_sensor_latency(self):
-        """
-        Call the problem.get_sensor_latency() method, that returns the latency of the sensor to every fog node.
-        :return: the latency of every sensor as multidimensional np.array
-        """
-        rv = []
-        vect = []
-        for i in range(self.problem.get_nsnsr()):
-            vect.append(self.problem.get_sensor_delay("S" + str(i + 1)))
-        rv = np.array(vect)
-        return rv
-
     def allocate_sensor(self, f, s):
         """
         Allocate a sensor to a fog node.
@@ -34,14 +21,14 @@ class VNS:
         :param s: sensor index
         :return: the vns.solution updated
         """
-        #check if the sum of the 1 inside the matrix is less than the number of sensors
+        # check if the sum of the 1 inside the matrix is less than the number of sensors
         if np.sum(self.solution[:, f]) < self.problem.get_nsnsr():
             self.solution[s, f] = 1
         else:
-            #randomly allocate a sensor to the fog node and remove randomly the sensor from the solution
-                r = randint(0, self.problem.get_nsnsr() - 1)
-                self.solution[r, f] = 0
-                self.solution[s, f] = 1
+            # randomly allocate a sensor to the fog node and remove randomly the sensor from the solution
+            r = randint(0, self.problem.get_nsnsr() - 1)
+            self.solution[r, f] = 0
+            self.solution[s, f] = 1
 
     def swap_sensors(self, f1, f2, idx_snsr_f1, idx_snsr_f2):
         """
@@ -57,46 +44,45 @@ class VNS:
         self.solution[idx_snsr_f2, f2] = 0
         self.solution[idx_snsr_f2, f1] = 1
 
-    def Neigborhood_change(self,c_sol,k):
+    def Neigborhood_change(self, c_sol, k):
         if c_sol.obj_func() < self.optsolution.obj_func():
-            self.solution=c_sol
-            k=1
+            self.solution = c_sol
+            k = 1
         else:
-            k=k+1
+            k = k + 1
         return k
 
     def VND(self):
         c_solution = OptSolution(self.problem)
         k = 1
         while k < 3:
-            if k==1:
+            if k == 1:
                 # all possible permutation of self.solution
                 perm = itertools.permutations(self.solution)
                 for i in perm:
                     c_solution = i
-                    k=k+1
-                    #k = self.Neigborhood_change(c_solution,k)
+                    k = k + 1
+                    # k = self.Neigborhood_change(c_solution,k)
 
             else:
-                count=self.problem.get_nsnsr()
-                #perform all possible allocating sensors to fog nodes
+                count = self.problem.get_nsnsr()
+                # perform all possible allocating sensors to fog nodes
                 for i in range(self.problem.get_nfog()):
                     for j in range(self.problem.get_nsnsr()):
                         if self.solution[i, j] == 0:
-                            if count>0:
+                            if count > 0:
                                 self.allocate_sensor(i, j)
-                                count-=1
+                                count -= 1
                         k = self.Neigborhood_change(c_solution, k)
                         k = k + 1
         return 0
-
 
     # variation of neighborhood search algorithm for minimize opt_sol.fobj
     def GVNS(self):
         iter = 0
         # initialize best solution
         while iter < 2:
-            if randint(0,1) == 0:
+            if randint(0, 1) == 0:
                 print("\n Struttura utilizzata: 1-Swap sensors \n")
                 self.structure1()
                 iter += 1
@@ -104,11 +90,9 @@ class VNS:
                 print("\n Struttura utilizzata: 2-allocation sensors \n")
                 self.structure2()
                 iter += 1
-            if self.VND()==1:
-                iter=0
+            if self.VND() == 1:
+                iter = 0
         return self.solution
-
-
 
 
     # select randomly a fog node f1, pick the farthest sensor from f1, swap with the closest sensor inside the
@@ -117,9 +101,6 @@ class VNS:
         @:param self: the object vns
         :return: swap the closest sensor with the farthest sensor
         """
-        snsr_latency = self.get_sensor_latency()
-        # delay of allocated sensors
-        snsr_latency_on = np.multiply(self.get_sensor_latency(), self.solution)
         # randomly select a fog node f1
         f1 = randint(0, (self.problem.get_nfog() - 1))
         while (np.sum(snsr_latency_on[:, f1]) == 0):
@@ -141,12 +122,13 @@ class VNS:
         # swap the two sensors
         self.swap_sensors(f1, f2, idx_snsr_f1, idx_snsr_f2)
 
+    """
     def structure2(self):
-        """
+        """"""
         The structure2 use the load of each fog node to select the fog node with the highest load
         @:param self: the object vns
         :return:
-        """
+        """"""
         load = []
         incoming = []
         snsr_latency_on = np.multiply(self.get_sensor_latency(), self.solution)
@@ -176,28 +158,31 @@ class VNS:
         f2 = np.argmin(masked_a)
         self.solution[idx_snsr_f1, f2] = 1
         self.solution[idx_snsr_f1, idx_1] = 0
+        """
 
     def initialize_solution(self):
         """
-        Initialize the solution of the VNS allocating sensors to nearest fog nodes
+        Initialize the solution of the VNS allocating service to fog nodes
         :param problem: the problem to analyze loaded from Problem class
-        :return: xij
+        :return: sf_solution
         """
-        sf_solution = np.zeros((self.problem.get_nsnsr(), self.problem.get_nfog()))
-        # allocate the sensor to fog nodes with the minimum delay
-        for i in range(self.problem.get_nsnsr()):
-            vect = self.problem.get_sensor_delay("S" + str(i + 1))
-            sf_solution[i][np.where(vect == np.min(vect))] = 1
+        servicechain = self.problem.get_servicechain_list()
+        nservice = len(servicechain)
+        sf_solution = [None] * nservice
+        for i in range(nservice):
+            sf_solution[i] = [None] * len(self.problem.get_microservice_list(servicechain[i]))
+        # allocate the microservice to fog nodes with the minimum delay
+        for i in range(nservice):
+            for j in range(len(self.problem.get_microservice_list(servicechain[i]))):
+                fog_choosed=randint(0, self.problem.get_nfog() - 1)
+                sf_solution[i][j] = "F" + str(fog_choosed+1)
         return sf_solution
 
 
 def solve_problem(data):
-    tnet_sf = tnet_fc = t_proc = None
     problem = Problem(data)
     vns = VNS(problem)
-    vns.GVNS()
-    print("Solution: \n"+ str(vns.solution))
-
+    print("Solution: \n" + str(vns.solution))
 
 
 if __name__ == '__main__':

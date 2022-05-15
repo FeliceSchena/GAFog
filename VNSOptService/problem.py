@@ -25,13 +25,6 @@ class Problem:
                 rv[self.get_network_key(f1, f2)] = {'delay': 0.0}
         return rv
 
-    def get_sensor_delay(self, s):
-        delay_vector = []
-        for j in self.fog.keys():
-            fog=str("to_"+str(lower(j)))
-            delay_vector.append(dict(self.sensor.get(s)).get(fog))
-        return np.array(delay_vector)
-
     def get_capacity(self, f):
         if f in self.fog:
             return self.fog[f]['capacity']
@@ -123,9 +116,6 @@ class Problem:
 
     def get_nservice(self):
         return len(self.microservice)
-
-    def get_nsnsr(self):
-        return len(self.sensor)
 
 
 if __name__ == '__main__':
