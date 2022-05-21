@@ -1,4 +1,5 @@
 {
+    "response": "file://sample_output.json",
     "fog": {
         "F1": {
             "capacity": 1.0

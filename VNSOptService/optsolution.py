@@ -1,17 +1,19 @@
 from problem import Problem
 from math import sqrt
 import json
+import numpy as np
 
 
 class OptSolution:
 
-    def __init__(self, problem):
+    def __init__(self, mapping, problem):
         self.problem = problem
         self.nf = problem.get_nfog()
         self.fognames = problem.get_fog_list()
         self.nsrv = problem.get_nservice()
         self.service = problem.get_microservice_list()
         self.serviceidx = self.get_service_idx()
+        self.mapping = mapping
         self.fog = [None] * self.nf
         self.compute_fog_status()
         self.resptimes = None
@@ -27,17 +29,11 @@ class OptSolution:
     def __str__(self):
         return (str(self.mapping))
 
-    def get_service_list(self, fidx):
-        rv = []
-        for s in range(self.nsrv):
-            rv.append(self.service[s])
-        return rv
-
     def compute_fog_status(self):
         # for each fog node
         for fidx in range(self.nf):
             # get list of services for that node
-            serv = self.get_service_list(fidx)
+            serv = self.mapping[fidx]
             f = self.problem.get_fog(self.fognames[fidx])
             # print(self.fognames[fidx], f, serv)
             # compute average service time for that node
@@ -98,7 +94,12 @@ class OptSolution:
             return (1 / mu) * (1 + ((1 + cv2) / 2) * (rho / (1 - rho)))
         else:
             return (1 / mu) * (1 / (1 - self.problem.maxrho))
-
+    def search_fog_index(self, name):
+        for i in range(self.nf):
+            for j in range(len(self.mapping[i])):
+                if self.mapping[i][j] == name:
+                    return i
+        return -1
     def compute_performance(self):
         rv = {}
         # for each service chain
@@ -108,7 +109,7 @@ class OptSolution:
             # for each service
             for s in self.problem.get_microservice_list(sc=sc):
                 # get fog node id from service name
-                fidx = self.serviceidx[s]
+                fidx = self.search_fog_index(s)
                 fname = self.fognames[fidx]
                 # add tresp for node where the service is located
                 tr += self.fog[fidx]['tresp']
@@ -134,16 +135,15 @@ class OptSolution:
         if self.resptimes is None:
             self.obj_func()
         rv = {'performance': self.resptimes, 'microservice': {}, 'sensor': {}}
-        print( self.obj_func())
+        print(self.mapping)
+        print(self.obj_func())
         for msidx in range(self.nsrv):
-            rv['microservice'][self.service[msidx]] = self.fognames[msidx]
+            rv['microservice'][self.service[msidx]] = self.mapping[msidx]
         for s in self.problem.sensor:
             msidx = self.serviceidx[self.problem.get_service_for_sensor(s)]
-            rv['sensor'][s] = self.fognames[msidx]
+            rv['sensor'][s] = self.fognames[self.mapping[msidx]]
         print(rv)
         return rv
-
-
 
 
 if __name__ == "__main__":
@@ -152,7 +152,9 @@ if __name__ == "__main__":
     print('problem objct')
     p = Problem(data)
     print(p)
-    i = OptSolution(p)
-    # print('obj_func= ' + str(i.obj_func()))
-    print(json.dumps(i.dump_solution(), indent=2))
+    for mapping in [[0, 1, 1], [1, 1, 0]]:
+        print('mapping objct ', mapping)
+        i = OptSolution(mapping, p)
+        # print('obj_func= ' + str(i.obj_func()))
+        print(json.dumps(i.dump_solution(), indent=2))
 
