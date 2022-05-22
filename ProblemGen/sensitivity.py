@@ -18,13 +18,14 @@ config={
     'response': 'file://sample_output.json'
 }
 
-#nrun=2
-#nservices=[3, 5]
-#rhos=[0.5, 0.7]
-nrun=10
-nservices=[3, 4, 5, 6, 7, 8, 9, 10]
-rhos=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
-nfogs=[5, 10, 15, 20, 25]
+nrun=2
+nservices=[3, 5]
+rhos=[0.5, 0.7]
+nfogs=[10, 15]
+#nrun=10
+#nservices=[3, 4, 5, 6, 7, 8, 9, 10]
+#rhos=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+#nfogs=[5, 10, 15, 20, 25]
 
 def nhop(data):
     nhop=0
@@ -52,13 +53,17 @@ def valid_solution(data):
     return True
 
 def resp(data):
+    #print(data)
     tr=[]
     for sc in data['servicechain']:
         tr.append(data['servicechain'][sc]['resptime'])
     return (np.mean(tr), np.std(tr))
 
 def gatime(data):
-    return data['time']
+    return data['extra']['deltatime']
+
+def generations(data):
+    return data['extra']['conv_gen']
 
 def parse_result(fname):
     with open(fname, 'r') as f:
@@ -69,7 +74,8 @@ def parse_result(fname):
         (r, s)=resp(data)
         h=nhop(data)
         gt=gatime(data)
-    return {'jain': j, 'tresp_avg': r, 'tresp_std': s, 'nhop': h, 'gatime': gt}
+        gen=generations(data)
+    return {'jain': j, 'tresp_avg': r, 'tresp_std': s, 'nhop': h, 'gatime': gt, 'convgen': gen}
 
 def collect_results(res):
     rv={}

@@ -120,21 +120,35 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output', help='output file. Default sample_problem.json')
     parser.add_argument('-c', '--config', help='config file. Default use default config')
     parser.add_argument('-s', '--solve',  action='store_true', help='solve problem')
+    parser.add_argument('-v', '--vns',  action='store_true', help='Solve with VNS')
+    parser.add_argument('-a', '--all',  action='store_true', help='Solve with all algorithms')
     args = parser.parse_args()
     oname=args.output if args.output is not None else 'sample_problem.json'
     if args.config is not None:
         with open(args.config, 'r') as f:
             config=json.load(f)
     else:
-        config={
-            'nchain': 1,
-            'nsrv_chain': 2,
-            'nfog': 4,
-            'tchain': 1.0,
-            'rho': 0.2,
-            'enable_network': False,
-            'response': 'file://sample_output.json'
-        }
+        if args.vns is not False:
+            config={
+                'nchain': 1,
+                'nsrv_chain': 5,
+                'nfog': 4,
+                'tchain': 1.0,
+                'rho': 0.2,
+                'enable_network': False,
+                'response': 'file://sample_output_vns.json'
+            }
+        else:
+            config = {
+                'nchain': 1,
+                'nsrv_chain': 5,
+                'nfog': 4,
+                'tchain': 1.0,
+                'rho': 0.2,
+                'enable_network': False,
+                'response': 'file://sample_output_ga.json'
+            }
+
     fname=args.file if args.output is not None else 'sample_problem.json'
     prob=get_problem(config)
     with open(fname, 'w') as f:
@@ -143,6 +157,20 @@ if __name__ == "__main__":
         sys.path.append('../ChainOptService')
         from ga import solve_problem
         solve_problem(prob)
+    if args.vns:
+        sys.path.append('../VNSOptService')
+        from vns import solve_problem
+        solve_problem(prob)
+    if args.all:
+        sys.path.append('../ChainOptService')
+        from ga import solve_problem
+        solve_problem(prob)
+        config['response']='file://sample_output_vns.json'
+        prob=get_problem(config)
+        sys.path.append('../VNSOptService')
+        from vns import solve_problem
+        solve_problem(prob)
+
 
 
 

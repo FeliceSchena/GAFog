@@ -5,8 +5,6 @@ import itertools
 import numpy as np
 import re
 import time
-import random
-
 import requests
 
 from optsolution import OptSolution
@@ -83,11 +81,9 @@ class VNS:
         # initialize best solution
         while iter < 2:
             if iter == 0:
-                print("\n Struttura 1 \n")
                 self.structure1()
                 iter += 1
             else:
-                print("\n Struttura 2 \n")
                 self.structure2()
                 iter += 1
             if self.vnd() == 1:
@@ -310,7 +306,7 @@ def solve_problem(data):
     vns = VNS(problem)
     ts = time.time()
     vns.gvns()
-    deltatime = time.time() - ts
+    deltatime = float(time.time() - ts)
     resp=data['response']
     if resp.startswith('file://'):
         dump_solution(resp.lstrip('file://'), vns.optsolution,deltatime)

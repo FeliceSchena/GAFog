@@ -1,0 +1,103 @@
+{
+  "servicechain": {
+    "SC1": {
+      "resptime": 0.6692177666388192,
+      "services": {
+        "MS1_1": {
+          "meanserv": 0.2,
+          "stddevserv": 0.02,
+          "rate": 5.0,
+          "cv": 0.09999999999999999,
+          "lambda": 0.8
+        },
+        "MS1_2": {
+          "meanserv": 0.1,
+          "stddevserv": 0.01,
+          "rate": 10.0,
+          "cv": 0.09999999999999999,
+          "lambda": 0.8
+        },
+        "MS1_3": {
+          "meanserv": 0.3,
+          "stddevserv": 0.03,
+          "rate": 3.3333333333333335,
+          "cv": 0.1,
+          "lambda": 0.8
+        }
+      },
+      "sensors": [
+        "S1",
+        "S2"
+      ]
+    },
+    "SC2": {
+      "resptime": 0.46808,
+      "services": {
+        "MS2_1": {
+          "meanserv": 0.1,
+          "stddevserv": 0.01,
+          "rate": 10.0,
+          "cv": 0.09999999999999999,
+          "lambda": 0.5
+        },
+        "MS2_2": {
+          "meanserv": 0.4,
+          "stddevserv": 0.01,
+          "rate": 2.5,
+          "cv": 0.024999999999999998,
+          "lambda": 0.5
+        }
+      },
+      "sensors": [
+        "S3"
+      ],
+      "lambda": 0.5
+    }
+  },
+  "microservice": {
+    "MS1_1": "F2",
+    "MS1_2": "F3",
+    "MS1_3": "F3",
+    "MS2_1": "F3",
+    "MS2_2": "F2"
+  },
+  "sensor": {
+    "S1": "F2",
+    "S2": "F2",
+    "S3": "F3"
+  },
+  "fog": {
+    "F1": {
+      "rho": 0.24,
+      "capacity": 1.0
+    },
+    "F2": {
+      "rho": 0.16000000000000003,
+      "capacity": 1.5
+    },
+    "F3": {
+      "rho": 0.2,
+      "capacity": 1.25
+    }
+  },
+  "extra": {
+    "deltatime": 0.0
+  },
+  "network": [
+    [
+      0.0,
+      0.1,
+      0.4
+    ],
+    [
+      0.1,
+      0.0,
+      0.3
+    ],
+    [
+      0.4,
+      0.3,
+      0.0
+    ]
+  ]
+}
