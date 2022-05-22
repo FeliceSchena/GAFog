@@ -128,25 +128,14 @@ if __name__ == "__main__":
         with open(args.config, 'r') as f:
             config=json.load(f)
     else:
-        if args.vns is not False:
-            config={
-                'nchain': 1,
-                'nsrv_chain': 5,
-                'nfog': 4,
-                'tchain': 1.0,
-                'rho': 0.2,
-                'enable_network': False,
-                'response': 'file://sample_output_vns.json'
-            }
-        else:
             config = {
-                'nchain': 1,
-                'nsrv_chain': 5,
-                'nfog': 4,
+                'nchain': 20,
+                'nsrv_chain': 15,
+                'nfog': 100,
                 'tchain': 1.0,
                 'rho': 0.2,
                 'enable_network': False,
-                'response': 'file://sample_output_ga.json'
+                'response': 'file://sample_output.json'
             }
 
     fname=args.file if args.output is not None else 'sample_problem.json'
@@ -154,10 +143,14 @@ if __name__ == "__main__":
     with open(fname, 'w') as f:
         data = json.dump(prob, f, indent=2)
     if args.solve:
+        config['response'] = 'file://sample_output_ga.json'
+        prob = get_problem(config)
         sys.path.append('../ChainOptService')
         from ga import solve_problem
         solve_problem(prob)
     if args.vns:
+        config['response'] = 'file://sample_output_vns.json'
+        prob = get_problem(config)
         sys.path.append('../VNSOptService')
         from vns import solve_problem
         solve_problem(prob)

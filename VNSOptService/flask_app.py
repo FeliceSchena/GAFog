@@ -8,7 +8,7 @@ def solve_problem(data):
 app = Flask(__name__)
 # Flask API
 # submitting jobs
-@app.post("/api/v1.0/ga")
+@app.post("/api/v1.0/vns")
 def post_problem():
     if request.is_json:
         data = request.get_json()
