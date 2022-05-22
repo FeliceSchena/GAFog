@@ -1,3 +1,5 @@
+import re
+
 from problem import Problem
 from math import sqrt
 import json
@@ -6,17 +8,19 @@ import numpy as np
 
 class OptSolution:
 
-    def __init__(self, mapping, problem):
+    def __init__(self, mapping,loaded_fog, problem):
         self.problem = problem
         self.nf = problem.get_nfog()
         self.fognames = problem.get_fog_list()
         self.nsrv = problem.get_nservice()
         self.service = problem.get_microservice_list()
         self.serviceidx = self.get_service_idx()
+        self.loaded_fog = loaded_fog
         self.mapping = mapping
         self.fog = [None] * self.nf
         self.compute_fog_status()
         self.resptimes = None
+        self.extra_param={}
 
     def get_service_idx(self):
         rv = {}
@@ -29,11 +33,13 @@ class OptSolution:
     def __str__(self):
         return (str(self.mapping))
 
+
+
     def compute_fog_status(self):
         # for each fog node
         for fidx in range(self.nf):
             # get list of services for that node
-            serv = self.mapping[fidx]
+            serv = self.loaded_fog[fidx]
             f = self.problem.get_fog(self.fognames[fidx])
             # print(self.fognames[fidx], f, serv)
             # compute average service time for that node
@@ -94,12 +100,10 @@ class OptSolution:
             return (1 / mu) * (1 + ((1 + cv2) / 2) * (rho / (1 - rho)))
         else:
             return (1 / mu) * (1 / (1 - self.problem.maxrho))
-    def search_fog_index(self, name):
-        for i in range(self.nf):
-            for j in range(len(self.mapping[i])):
-                if self.mapping[i][j] == name:
-                    return i
-        return -1
+
+    def search_fog_index(self, name,sc):
+        return int(re.findall(r'\d+', self.mapping[sc][name])[0])-1
+
     def compute_performance(self):
         rv = {}
         # for each service chain
@@ -109,7 +113,7 @@ class OptSolution:
             # for each service
             for s in self.problem.get_microservice_list(sc=sc):
                 # get fog node id from service name
-                fidx = self.search_fog_index(s)
+                fidx = self.search_fog_index(s,sc)
                 fname = self.fognames[fidx]
                 # add tresp for node where the service is located
                 tr += self.fog[fidx]['tresp']
@@ -130,19 +134,37 @@ class OptSolution:
             tr_tot += self.resptimes[sc]['resptime'] * self.problem.servicechain[sc]['weight']
         return tr_tot
 
-    def dump_solution(self):
-        print('dumping solution')
+    def dump_solution(self ,deltatime):
+        self.extra_param={"deltatime":deltatime}
         if self.resptimes is None:
             self.obj_func()
-        rv = {'performance': self.resptimes, 'microservice': {}, 'sensor': {}}
-        print(self.mapping)
-        print(self.obj_func())
-        for msidx in range(self.nsrv):
-            rv['microservice'][self.service[msidx]] = self.mapping[msidx]
+        rv={'servicechain': self.resptimes, 'microservice': {}, 'sensor': {}, 'fog':{}}
+        for sc in self.problem.get_servicechain_list():
+            rv['servicechain'][sc]['services']={}
+            rv['servicechain'][sc]['sensors']=[]
+            for ms in self.problem.get_microservice_list(sc=sc):
+                rv['servicechain'][sc]['services'][ms]=self.problem.get_microservice(ms)
+        for s in self.problem.get_sensor_list():
+            sc=self.problem.get_chain_for_sensor(s)
+            rv['servicechain'][sc]['sensors'].append(s)
+        rv['servicechain'][sc]['lambda']=self.problem.servicechain[sc]['lambda']
+        msidx = 0
+        sidx=0
+        for i in self.mapping.keys():
+            for j in self.mapping[i].keys():
+                rv['microservice'][self.service[msidx]] = self.mapping[i][j]
+                msidx += 1
         for s in self.problem.sensor:
             msidx = self.serviceidx[self.problem.get_service_for_sensor(s)]
-            rv['sensor'][s] = self.fognames[self.mapping[msidx]]
-        print(rv)
+            temp=self.service[msidx]
+            for i in self.mapping.keys():
+                if (self.mapping[i].get(temp)) is not None:
+                    rv['sensor'][s] = self.mapping[i].get(temp)
+        for f in self.fog:
+            rv['fog'][f['name']]={'rho': f['rho'], 'capacity': self.problem.get_fog(f['name'])['capacity']}
+        rv['extra']=self.extra_param
+        if not self.problem.network_is_fake:
+            rv['network']=self.problem.network_as_matrix()
         return rv
 
 
@@ -157,4 +179,3 @@ if __name__ == "__main__":
         i = OptSolution(mapping, p)
         # print('obj_func= ' + str(i.obj_func()))
         print(json.dumps(i.dump_solution(), indent=2))
-

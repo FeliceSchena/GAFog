@@ -7,6 +7,8 @@ import re
 import time
 import random
 
+import requests
+
 from optsolution import OptSolution
 from problem import Problem
 
@@ -17,8 +19,8 @@ class VNS:
         self.solution = self.initialize_solution()
         self.best=None
         self.fog_list = self.load_fog_service()
-        self.optsolution = OptSolution(self.fog_list, problem)
-        self.c_solution= OptSolution(self.fog_list, problem)
+        self.optsolution = OptSolution(self.solution,self.fog_list, problem)
+        self.c_solution= OptSolution(self.solution,self.fog_list, problem)
 
     def swap_microservice(self, f1, f2, idx_microservice_f1, idx_microservice_f2):
         """
@@ -31,19 +33,16 @@ class VNS:
         """
         if len(self.fog_list[f2]) != 0:
             index = re.findall(r'\d+', str(self.fog_list[f1][idx_microservice_f1]))
-            self.solution[int(index[0]) - 1][int(index[1]) - 1] = "F" + str(f2 + 1)
+            self.solution["SC"+index[0]]["MS"+index[0]+"_"+index[1]] = "F" + str(f2 + 1)
             index = re.findall(r'\d+', str(self.fog_list[f2][idx_microservice_f2]))
-            self.solution[int(index[0]) - 1][int(index[1]) - 1] = "F" + str(f1 + 1)
+            self.solution["SC"+index[0]]["MS"+index[0]+"_"+index[1]] = "F" + str(f1 + 1)
             self.fog_list = self.load_fog_service()
         else:
             index = re.findall(r'\d+', str(self.fog_list[f1][idx_microservice_f1]))
-            self.solution[int(index[0]) - 1][int(index[1]) - 1] = "F" + str(f2 + 1)
+            self.solution["SC"+index[0]]["MS"+index[0]+"_"+index[1]] = "F" + str(f2 + 1)
             self.fog_list = self.load_fog_service()
 
     def neigborhood_change(self,check):
-        with open("results","a") as f:
-            f.write("Current:   \t"+str(self.c_solution.obj_func())+"\n")
-            f.write("opt:   \t"+str(self.optsolution.obj_func())+"\n")
         if self.c_solution.obj_func() < self.optsolution.obj_func():
             self.optsolution = self.c_solution
             self.best=self.solution
@@ -61,7 +60,7 @@ class VNS:
                 combinations = itertools.combinations(microservices, 2)
                 for i in combinations:
                     self.find_fog(i)
-                    self.c_solution=OptSolution(self.fog_list, self.problem)
+                    self.c_solution=OptSolution(self.solution,self.fog_list, self.problem)
                     k+=1
                     check = self.neigborhood_change(check)
             if k==2:
@@ -135,7 +134,7 @@ class VNS:
             self.swap_microservice(f1, idx_f2, idx_microservice_f1, idx_microservice_f2)
         else:
             self.swap_microservice(f1, idx_f2, idx_microservice_f1, 0)
-        self.c_solution=OptSolution(self.fog_list, self.problem)
+        self.c_solution=OptSolution(self.solution,self.fog_list, self.problem)
 
 
     def structure2(self):
@@ -187,21 +186,21 @@ class VNS:
         masked_latency = np.ma.masked_equal(latency, -1, copy=False)
         idx_f2 = self.find_best(masked_load, masked_latency)
         index = re.findall(r'\d+', str(self.fog_list[f1_idx][idx_microservice_f1]))
-        self.solution[int(index[0]) - 1][int(index[1]) - 1] = "F" + str(idx_f2 + 1)
+        self.solution["SC"+index[0]]["MS"+index[0]+"_"+index[1]] = "F" + str(idx_f2 + 1)
         self.fog_list = self.load_fog_service()
-        self.c_solution = OptSolution(self.fog_list, self.problem)
+        self.c_solution = OptSolution(self.solution, self.fog_list, self.problem)
 
     def find_fog(self, idx_microservice,fog=None):
         if len(idx_microservice)==2:
             ms1=re.findall(r'\d+', str(idx_microservice[0]))
-            temp = self.solution[int(ms1[0]) - 1][int(ms1[1]) - 1]
+            temp = self.solution["SC"+ms1[0]]["MS"+ms1[0]+"_"+ms1[1]]
             ms2 = re.findall(r'\d+', str(idx_microservice[1]))
-            self.solution[int(ms1[0]) - 1][int(ms1[1]) - 1] = self.solution[int(ms2[0]) - 1][int(ms2[1]) - 1]
-            self.solution[int(ms2[0]) - 1][int(ms2[1]) - 1] = temp
+            self.solution["SC"+ms1[0]]["MS"+ms1[0]+"_"+ms1[1]] = self.solution["SC"+ms2[0]]["MS"+ms2[0]+"_"+ms2[1]]
+            self.solution["SC"+ms2[0]]["MS"+ms2[0]+"_"+ms2[1]] = temp
         else:
             ms1 = re.findall(r'\d+', str(idx_microservice[0]))
             print(ms1)
-            self.solution[int(ms1[0] - 1)][int(ms1[1] - 1)] = fog
+            self.solution["SC"+ms1[0]]["MS"+ms1[0]+"_"+ms1[1]] = fog
         self.fog_list = self.load_fog_service()
 
     def find_best(self, load, latency):
@@ -241,16 +240,15 @@ class VNS:
         :param problem: the problem to analyze loaded from Problem class
         :return: sf_solution
         """
+        sf_solution ={}
+        temp={}
         servicechain = self.problem.get_servicechain_list()
-        nservice = len(servicechain)
-        sf_solution = [None] * nservice
-        for i in range(nservice):
-            sf_solution[i] = [None] * len(self.problem.get_microservice_list(servicechain[i]))
-        # allocate the microservice to fog nodes with the minimum delay
-        for i in range(nservice):
-            for j in range(len(self.problem.get_microservice_list(servicechain[i]))):
+        for i in servicechain:
+            temp.clear()
+            for j in self.problem.get_microservice_list(i):
                 fog_choosed = randint(0, self.problem.get_nfog() - 1)
-                sf_solution[i][j] = "F" + str(fog_choosed + 1)
+                temp[j] = "F" + str(fog_choosed + 1)
+            sf_solution[i] =dict(temp)
         return sf_solution
 
     def load_fog_service(self):
@@ -260,10 +258,10 @@ class VNS:
         """
         # create empty two-dimensional list
         fog_service = [[] for i in range(self.problem.get_nfog())]
-        for i in range(len(self.solution)):
-            for j in range(len(self.solution[i])):
+        for i in self.solution:
+            for j in self.solution[i]:
                 index = re.findall(r'\d+', self.solution[i][j])
-                fog_service[int(index[0]) - 1].append("MS" + str(i + 1) + "_" + str(j + 1))
+                fog_service[int(index[0]) - 1].append(j)
         return fog_service
 
     def find_previous_microservice(self, index):
@@ -302,9 +300,9 @@ class VNS:
         return latency
 
 
-def dump_solution(gaout, sol):
+def dump_solution(gaout, sol,deltatime):
     with open(gaout, "w+") as f:
-            json.dump(sol.dump_solution(), f, indent=2)
+            json.dump(sol.dump_solution(deltatime), f, indent=2)
 
 
 def solve_problem(data):
@@ -315,10 +313,10 @@ def solve_problem(data):
     deltatime = time.time() - ts
     resp=data['response']
     if resp.startswith('file://'):
-        dump_solution(resp.lstrip('file://'), vns.optsolution)
+        dump_solution(resp.lstrip('file://'), vns.optsolution,deltatime)
     else:
         # use requests package to send results
-        requests.post(data['response'], json=vns.optsolution.dump_solution())
+        requests.post(data['response'], json=vns.optsolution.dump_solution(deltatime))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

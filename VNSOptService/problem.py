@@ -11,8 +11,10 @@ class Problem:
         self.servicechain = dict(problem['servicechain'])
         self.microservice = dict(problem['microservice'])
         if 'network' in problem:
-            self.network = dict(problem['network'])
+            self.network_is_fake = False
+            self.network = problem['network']
         else:
+            self.network_is_fake = True
             self.network = self.fake_network(self.fog)
         self.maxrho = 0.999
         self.compute_service_params()
@@ -36,6 +38,15 @@ class Problem:
 
     def get_network_key(self, f1, f2):
         return '%s-%s' % (f1, f2)
+
+    def network_as_matrix(self):
+        rv=[]
+        for f1 in self.get_fog_list():
+            l=[]
+            for f2 in self.get_fog_list():
+                l.append(self.get_delay(f1, f2)['delay'])
+            rv.append(l)
+        return rv
 
     def get_delay(self, f1, f2):
         k = self.get_network_key(f1, f2)
@@ -73,6 +84,12 @@ class Problem:
     def get_service_for_sensor(self, s):
         sc = self.sensor[s]['servicechain']
         return self.servicechain[sc]['services'][0]
+
+    def get_sensor_list(self):
+        return list(self.sensor.keys())
+
+    def get_chain_for_sensor(self, s):
+        return self.sensor[s]['servicechain']
 
     def compute_chain_params(self):
         tot_weight = 0.0
