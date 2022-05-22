@@ -1,4 +1,3 @@
-import statistics
 import json
 
 class Problem:
@@ -8,8 +7,10 @@ class Problem:
         self.servicechain=problem['servicechain']
         self.microservice=problem['microservice']
         if 'network' in problem:
+            self.network_is_fake=False
             self.network=problem['network']
         else:
+            self.network_is_fake=True
             self.network=self.fake_network(self.fog)
         self.maxrho=0.999
         self.compute_service_params()
@@ -117,8 +118,17 @@ class Problem:
     def get_nfog(self):
         return len(self.fog)
 
-    def get_nsnsr(self):
-        return len(self.sensor)
+    def get_nservice(self):
+        return len(self.microservice)
+    
+    def network_as_matrix(self):
+        rv=[]
+        for f1 in self.get_fog_list():
+            l=[]
+            for f2 in self.get_fog_list():
+                l.append(self.get_delay(f1, f2)['delay'])
+            rv.append(l)
+        return rv
 
 if __name__ == '__main__':
     with open('sample_input.json',) as f:
