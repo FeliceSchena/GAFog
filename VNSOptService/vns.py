@@ -151,7 +151,7 @@ class VNS:
         try:
             np.max(load)
         except ValueError:
-            Print("\n No fog node with load")
+            print("\n No fog node with load")
         # the next three methods are used to random choose fog with load higher than r
         while True:
             masked_load = np.ma.masked_less(load, r, copy=False)
