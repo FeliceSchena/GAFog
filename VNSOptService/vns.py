@@ -9,6 +9,14 @@ import requests
 from optsolution import OptSolution
 from problem import Problem
 
+__author__ = "Felice Schena"
+__copyright__ = "Copyright 2022 Felice Schena"
+__credits__ = ["Felice Schena","Riccardo Lancellotti","Claudia Canali","Manuel Iori","Thiago Alves de Queiroz"]
+__license__ = "GPL"
+__version__ = "3.0.0"
+__maintainer__ = "Felice Schena"
+__email__ = "246240@studenti.unimore.it"
+__status__ = "Production"
 
 class VNS:
     def __init__(self, problem):
