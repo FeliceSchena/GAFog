@@ -1,7 +1,7 @@
 import statistics
 import json
 import numpy as np
-from soupsieve.util import lower
+
 
 
 class Problem:
