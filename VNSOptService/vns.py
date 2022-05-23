@@ -6,13 +6,15 @@ import numpy as np
 import re
 import time
 import requests
-
 from optsolution import OptSolution
 from problem import Problem
 
 
 class VNS:
     def __init__(self, problem):
+        """
+        Initialize the VNS class.
+        """
         self.problem = problem
         self.solution = self.initialize_solution()
         self.best = None
@@ -41,6 +43,10 @@ class VNS:
             self.fog_list = self.load_fog_service()
 
     def neigborhood_change(self, check):
+        """
+        Check if the current solution is better than the best solution.
+        :param check: 1 if the solution is improved, 0 otherwise
+        """
         if self.c_solution.obj_func() < self.optsolution.obj_func():
             self.optsolution = self.c_solution
             self.best = self.solution
@@ -48,6 +54,10 @@ class VNS:
         return check
 
     def vnd(self):
+        """
+        Variable Neighborhood Descent function.
+        :return: 1 if the solution is improved, 0 otherwise
+        """
         k = 1
         altered = 0
         check = 0
@@ -58,7 +68,9 @@ class VNS:
                 combinations = itertools.combinations(microservices, 2)
                 for i in combinations:
                     self.find_fog(i)
-                    self.c_solution = OptSolution(self.solution, self.fog_list, self.problem)
+                    self.c_solution.mapping = self.solution
+                    self.c_solution.loaded_fog = self.fog_list
+                    self.c_solution.compute_fog_status()
                     k += 1
                     check = self.neigborhood_change(check)
             if k == 2:
@@ -67,7 +79,9 @@ class VNS:
                 for i in microservices:
                     for j in fog:
                         self.find_fog(i, str(j))
-                        self.c_solution = OptSolution(self.fog_list, self.problem)
+                        self.c_solution.mapping = self.solution
+                        self.c_solution.loaded_fog = self.fog_list
+                        self.c_solution.compute_fog_status()
                         k += 1
                         check = self.neigborhood_change(check)
             if check == 1:
@@ -77,6 +91,9 @@ class VNS:
 
     # variation of neighborhood search algorithm for minimize opt_sol.fobj
     def gvns(self):
+        """
+        Variable Neighborhood Search function.
+        """
         iter = 0
         # initialize best solution
         while iter < 2:
@@ -129,7 +146,9 @@ class VNS:
             self.swap_microservice(f1, idx_f2, idx_microservice_f1, idx_microservice_f2)
         else:
             self.swap_microservice(f1, idx_f2, idx_microservice_f1, 0)
-        self.c_solution = OptSolution(self.solution, self.fog_list, self.problem)
+        self.c_solution.mapping=self.solution
+        self.c_solution.loaded_fog=self.fog_list
+        self.c_solution.compute_fog_status()
 
     def structure2(self):
         """
@@ -183,7 +202,9 @@ class VNS:
         index = re.findall(r'\d+', str(self.fog_list[f1_idx][idx_microservice_f1]))
         self.solution["SC" + index[0]]["MS" + index[0] + "_" + index[1]] = "F" + str(idx_f2 + 1)
         self.fog_list = self.load_fog_service()
-        self.c_solution = OptSolution(self.solution, self.fog_list, self.problem)
+        self.c_solution.mapping=self.solution
+        self.c_solution.loaded_fog=self.fog_list
+        self.c_solution.compute_fog_status()
 
     def find_fog(self, idx_microservice, fog=None):
         if len(idx_microservice) == 2:
@@ -200,6 +221,12 @@ class VNS:
         self.fog_list = self.load_fog_service()
 
     def find_best(self, load, latency):
+        """
+        find the fog node with the lowest load and the closest from the selected fog node
+        :param load: load of each fog node
+        :param latency: latency of each fog node
+        :return: the index of the fog node with the lowest load and the closest from the selected fog node
+        """
         r = -1
         d = -1
         idx = 0
@@ -261,6 +288,11 @@ class VNS:
         return fog_service
 
     def find_previous_microservice(self, index):
+        """
+        Find the index of the previous microservice in the fog variable
+        :param index: the index of the microservice in the fog variable
+        :return: the index of the previous microservice in the fog variable
+        """
         if index[1] != "1":
             for j in range(self.problem.get_nfog()):
                 try:
@@ -276,6 +308,7 @@ class VNS:
         """
         Get the latency of a microservice from previous to next microservice in the service chain
         :param fog_column: the index of the microservice
+        :param fog: the index of the fog node if default value is None. If is not None, the index of the fog node is used to get the latency from that fog node
         :return: latency of the microservice
         """
         latency = list()
@@ -299,6 +332,9 @@ class VNS:
 
 
 def dump_solution(gaout, sol, deltatime):
+    """
+    Dump the solution of the vns to a file
+    """
     with open(gaout, "w+") as f:
         json.dump(sol.dump_solution(deltatime), f, indent=2)
 
