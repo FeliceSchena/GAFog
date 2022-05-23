@@ -8,10 +8,12 @@ import time
 import requests
 from optsolution import OptSolution
 from problem import Problem
+from itertools import starmap
+from itertools import product
 
 __author__ = "Felice Schena"
 __copyright__ = "Copyright 2022 Felice Schena"
-__credits__ = ["Felice Schena","Riccardo Lancellotti","Claudia Canali","Manuel Iori","Thiago Alves de Queiroz"]
+__credits__ = ["Felice Schena", "Riccardo Lancellotti", "Claudia Canali", "Manuel Iori", "Thiago Alves de Queiroz"]
 __license__ = "GPL"
 __version__ = "3.0.0"
 __maintainer__ = "Felice Schena"
@@ -34,6 +36,8 @@ __status__ = "Production"
     You should have received a copy of the GNU General Public License
     along with VNSOptService.  If not, see <http://www.gnu.org/licenses/>.
 """
+
+
 class VNS:
     def __init__(self, problem):
         """
@@ -45,6 +49,9 @@ class VNS:
         self.fog_list = self.load_fog_service()
         self.optsolution = OptSolution(self.solution, self.fog_list, problem)
         self.c_solution = OptSolution(self.solution, self.fog_list, problem)
+        self.k = 1
+        self.check = 0
+
 
     def swap_microservice(self, f1, f2, idx_microservice_f1, idx_microservice_f2):
         """
@@ -66,7 +73,7 @@ class VNS:
             self.solution["SC" + index[0]]["MS" + index[0] + "_" + index[1]] = "F" + str(f2 + 1)
             self.fog_list = self.load_fog_service()
 
-    def neigborhood_change(self, check):
+    def neigborhood_change(self):
         """
         Check if the current solution is better than the best solution.
         :param check: 1 if the solution is improved, 0 otherwise
@@ -74,41 +81,47 @@ class VNS:
         if self.c_solution.obj_func() < self.optsolution.obj_func():
             self.optsolution = self.c_solution
             self.best = self.solution
-            check = 1
-        return check
+            self.check = 1
+        return self.check
+
+    def perform_swap(self, element,element2):
+        self.find_fog([element,element2])
+        self.c_solution.mapping = self.solution
+        self.c_solution.loaded_fog = self.fog_list
+        self.c_solution.compute_fog_status()
+        self.neigborhood_change()
+        return None
+
+    def perform_allocation(self, element,element2):
+        self.find_fog(element,element2)
+        self.c_solution.mapping = self.solution
+        self.c_solution.loaded_fog = self.fog_list
+        self.c_solution.compute_fog_status()
+        self.neigborhood_change()
+        return None
 
     def vnd(self):
         """
         Variable Neighborhood Descent function.
         :return: 1 if the solution is improved, 0 otherwise
         """
-        k = 1
+        self.k = 1
+        self.check = 0
         altered = 0
-        check = 0
-        while k < 3:
-            check = 0
-            if k == 1:
+        while self.k < 3:
+            self.check = 0
+            if self.k == 1:
                 microservices = self.problem.get_microservice_list()
-                combinations = itertools.combinations(microservices, 2)
-                for i in combinations:
-                    self.find_fog(i)
-                    self.c_solution.mapping = self.solution
-                    self.c_solution.loaded_fog = self.fog_list
-                    self.c_solution.compute_fog_status()
-                    k += 1
-                    check = self.neigborhood_change(check)
-            if k == 2:
+                combinations = list(itertools.combinations(microservices, 2))
+                ret=list(starmap(self.perform_swap, combinations))
+                self.k += 1
+            if self.k == 2:
                 microservices = self.problem.get_microservice_list()
                 fog = self.problem.get_fog_list()
-                for i in microservices:
-                    for j in fog:
-                        self.find_fog(i, str(j))
-                        self.c_solution.mapping = self.solution
-                        self.c_solution.loaded_fog = self.fog_list
-                        self.c_solution.compute_fog_status()
-                        k += 1
-                        check = self.neigborhood_change(check)
-            if check == 1:
+                unique_combinations = list(itertools.product(microservices, fog))
+                ret=list(starmap(self.perform_allocation, unique_combinations))
+                self.k += 1
+            if self.check == 1:
                 k = 1
                 altered = 1
         return altered
@@ -170,8 +183,8 @@ class VNS:
             self.swap_microservice(f1, idx_f2, idx_microservice_f1, idx_microservice_f2)
         else:
             self.swap_microservice(f1, idx_f2, idx_microservice_f1, 0)
-        self.c_solution.mapping=self.solution
-        self.c_solution.loaded_fog=self.fog_list
+        self.c_solution.mapping = self.solution
+        self.c_solution.loaded_fog = self.fog_list
         self.c_solution.compute_fog_status()
 
     def structure2(self):
@@ -226,8 +239,8 @@ class VNS:
         index = re.findall(r'\d+', str(self.fog_list[f1_idx][idx_microservice_f1]))
         self.solution["SC" + index[0]]["MS" + index[0] + "_" + index[1]] = "F" + str(idx_f2 + 1)
         self.fog_list = self.load_fog_service()
-        self.c_solution.mapping=self.solution
-        self.c_solution.loaded_fog=self.fog_list
+        self.c_solution.mapping = self.solution
+        self.c_solution.loaded_fog = self.fog_list
         self.c_solution.compute_fog_status()
 
     def find_fog(self, idx_microservice, fog=None):
@@ -239,8 +252,7 @@ class VNS:
                 "MS" + ms2[0] + "_" + ms2[1]]
             self.solution["SC" + ms2[0]]["MS" + ms2[0] + "_" + ms2[1]] = temp
         else:
-            ms1 = re.findall(r'\d+', str(idx_microservice[0]))
-            print(ms1)
+            ms1 = re.findall(r'\d+', idx_microservice)
             self.solution["SC" + ms1[0]]["MS" + ms1[0] + "_" + ms1[1]] = fog
         self.fog_list = self.load_fog_service()
 
@@ -368,6 +380,7 @@ def solve_problem(data):
     vns = VNS(problem)
     ts = float(time.time())
     vns.gvns()
+    print(vns.time)
     deltatime = float(time.time() - ts)
     resp = data['response']
     if resp.startswith('file://'):
