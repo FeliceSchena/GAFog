@@ -138,7 +138,7 @@ if __name__ == "__main__":
               [sg.Text('Quale algoritmo?'),
                sg.InputCombo(('Genetic Algorithm', 'VNS Algorithm', 'All 2'), default_value='Genetic Algorithm',
                              key='algorithm')],
-              [sg.Text('response'), sg.InputText('sample_output', key='response')],
+              [sg.Text('response'), sg.InputText('sample_output', key='response'), sg.FileSaveAs()],
               [sg.Submit(), sg.Button('Exit')]]
     window = sg.Window('ProblemGen', layout)
     while True:
@@ -194,7 +194,9 @@ if __name__ == "__main__":
             prob = get_problem(config)
             sys.path.append('../VNSOptService')
             from vns import solve_problem
+            print("VNS iniziato")
             solve_problem(prob)
+            print("Fine")
             event=sg.popup_yes_no("Vuoi aprire i file delle soluzioni?",keep_on_top=True)
             if event in ('Yes'):
                 os.startfile(ga_resp)

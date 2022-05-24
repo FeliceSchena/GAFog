@@ -86,11 +86,7 @@ class VNS:
             self.check = 1
         return self.check
 
-    def perform_swap(self, element):
-        ret = list(starmap(self.new_sol, element))
-        return None
-
-    def new_sol(self,element,element2):
+    def perform_swap(self, element,element2):
         self.find_fog([element,element2])
         self.c_solution.mapping = self.solution
         self.c_solution.loaded_fog = self.fog_list
@@ -105,10 +101,6 @@ class VNS:
         self.neigborhood_change()
         return None
 
-    def split(self,a, n):
-        k, m = divmod(len(a), n)
-        return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
-
     def vnd(self):
         """
         Variable Neighborhood Descent function.
@@ -122,22 +114,17 @@ class VNS:
             if self.k == 1:
                 microservices = self.problem.get_microservice_list()
                 combinations = list(itertools.combinations(microservices, 2))
-                chunk_size = mp.cpu_count()
-                chunked_list = list(self.split(combinations,chunk_size))
-                processes=[]
-                for j in range(len(chunked_list)):
-                    p=mp.Process(target=self.perform_swap,args=(chunked_list[j],))
-                    processes.append(p)
-                    p.start()
-                for process in processes:
-                    process.join()
-                #ret=list(starmap(self.perform_swap, combinations))
+                pool = mp.Pool()
+                pool.starmap(self.perform_swap,combinations)
+                pool.close()
                 self.k += 1
             if self.k == 2:
                 microservices = self.problem.get_microservice_list()
                 fog = self.problem.get_fog_list()
                 unique_combinations = list(itertools.product(microservices, fog))
-                ret=list(starmap(self.perform_allocation, unique_combinations))
+                new_pool=mp.Pool()
+                new_pool.starmap(self.perform_allocation, unique_combinations)
+                pool.close()
                 self.k += 1
             if self.check == 1:
                 k = 1
