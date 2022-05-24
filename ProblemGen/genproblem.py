@@ -163,7 +163,3 @@ if __name__ == "__main__":
         sys.path.append('../VNSOptService')
         from vns import solve_problem
         solve_problem(prob)
-
-
-
-
