@@ -136,7 +136,7 @@ if __name__ == "__main__":
               [sg.Text('Rho'), sg.InputText('0.2', key='rho')],
               [sg.Text('Enable network'), sg.Checkbox('', default=False, key='enable_network')],
               [sg.Text('Quale algoritmo?'),
-               sg.InputCombo(('Genetic Algorithm', 'VNS Algorithm', 'All 2'), default_value='Genetic Algorithm',
+               sg.InputCombo(('Genetic Algorithm', 'VNS Algorithm', 'All 2'), default_value='All 2',
                              key='algorithm')],
               [sg.Text('response'), sg.InputText('sample_output', key='response'), sg.FileSaveAs()],
               [sg.Submit(), sg.Button('Exit')]]

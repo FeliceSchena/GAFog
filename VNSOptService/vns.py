@@ -10,8 +10,6 @@ import requests
 import multiprocessing as mp
 from optsolution import OptSolution
 from problem import Problem
-from itertools import starmap
-from itertools import product
 
 __author__ = "Felice Schena"
 __copyright__ = "Copyright 2022 Felice Schena"
@@ -124,7 +122,7 @@ class VNS:
                 unique_combinations = list(itertools.product(microservices, fog))
                 new_pool=mp.Pool()
                 new_pool.starmap(self.perform_allocation, unique_combinations)
-                pool.close()
+                new_pool.close()
                 self.k += 1
             if self.check == 1:
                 k = 1
