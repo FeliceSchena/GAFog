@@ -1,11 +1,13 @@
 import argparse
 import json
+from decimal import Decimal
 from random import randint
 import itertools
 import numpy as np
 import re
 import time
 import requests
+import multiprocessing as mp
 from optsolution import OptSolution
 from problem import Problem
 from itertools import starmap
@@ -84,13 +86,16 @@ class VNS:
             self.check = 1
         return self.check
 
-    def perform_swap(self, element,element2):
+    def perform_swap(self, element):
+        ret = list(starmap(self.new_sol, element))
+        return None
+
+    def new_sol(self,element,element2):
         self.find_fog([element,element2])
         self.c_solution.mapping = self.solution
         self.c_solution.loaded_fog = self.fog_list
         self.c_solution.compute_fog_status()
         self.neigborhood_change()
-        return None
 
     def perform_allocation(self, element,element2):
         self.find_fog(element,element2)
@@ -99,6 +104,10 @@ class VNS:
         self.c_solution.compute_fog_status()
         self.neigborhood_change()
         return None
+
+    def split(self,a, n):
+        k, m = divmod(len(a), n)
+        return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
     def vnd(self):
         """
@@ -113,7 +122,16 @@ class VNS:
             if self.k == 1:
                 microservices = self.problem.get_microservice_list()
                 combinations = list(itertools.combinations(microservices, 2))
-                ret=list(starmap(self.perform_swap, combinations))
+                chunk_size = mp.cpu_count()
+                chunked_list = list(self.split(combinations,chunk_size))
+                processes=[]
+                for j in range(len(chunked_list)):
+                    p=mp.Process(target=self.perform_swap,args=(chunked_list[j],))
+                    processes.append(p)
+                    p.start()
+                for process in processes:
+                    process.join()
+                #ret=list(starmap(self.perform_swap, combinations))
                 self.k += 1
             if self.k == 2:
                 microservices = self.problem.get_microservice_list()
@@ -378,15 +396,15 @@ def dump_solution(gaout, sol, deltatime):
 def solve_problem(data):
     problem = Problem(data)
     vns = VNS(problem)
-    ts = float(time.time())
+    ts = Decimal(time.time())
     vns.gvns()
-    deltatime = float(time.time() - ts)
+    deltatime = Decimal(Decimal(time.time()) - ts)
     resp = data['response']
     if resp.startswith('file://'):
-        dump_solution(resp.lstrip('file://'), vns.optsolution, deltatime)
+        dump_solution(resp.lstrip('file://'), vns.optsolution, float(deltatime))
     else:
         # use requests package to send results
-        requests.post(data['response'], json=vns.optsolution.dump_solution(deltatime))
+        requests.post(data['response'], json=vns.optsolution.dump_solution(float(deltatime)))
 
 
 if __name__ == '__main__':
