@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 import argparse
+import os
+
 import numpy
 import json
 import sys
@@ -169,25 +171,31 @@ if __name__ == "__main__":
             sys.path.append('../ChainOptService')
             from ga import solve_problem
             solve_problem(prob)
+            event=sg.popup_yes_no("Vuoi aprire il file delle soluzioni?",keep_on_top=True)
+            if event in ('Yes'):
+                os.startfile(config['response'].lstrip('file://'))
         if alg == 'VNS Algorithm':
             config['response'] = "file://" + values['response'] + "_vns.json"
             prob = get_problem(config)
             sys.path.append('../VNSOptService')
             from vns import solve_problem
-
             solve_problem(prob)
+            event=sg.popup_yes_no("Vuoi aprire il file delle soluzioni?",keep_on_top=True)
+            if event in ('Yes'):
+                os.startfile(config['response'].lstrip('file://'))
         if alg == 'All 2':
             config['response'] = "file://" + values['response'] + "_ga.json"
+            ga_resp=config['response'].lstrip('file://')
             prob = get_problem(config)
             sys.path.append('../ChainOptService')
             from ga import solve_problem
-
             solve_problem(prob)
-            print('GA done')
             config['response'] = "file://" + values['response'] + "_vns.json"
             prob = get_problem(config)
             sys.path.append('../VNSOptService')
             from vns import solve_problem
-
             solve_problem(prob)
-            print('VNS done')
+            event=sg.popup_yes_no("Vuoi aprire i file delle soluzioni?",keep_on_top=True)
+            if event in ('Yes'):
+                os.startfile(ga_resp)
+                os.startfile(config['response'].lstrip('file://'))

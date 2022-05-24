@@ -380,7 +380,6 @@ def solve_problem(data):
     vns = VNS(problem)
     ts = float(time.time())
     vns.gvns()
-    print(vns.time)
     deltatime = float(time.time() - ts)
     resp = data['response']
     if resp.startswith('file://'):
