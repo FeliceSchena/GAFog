@@ -7,9 +7,10 @@ import numpy as np
 import re
 import time
 import requests
-import multiprocessing as mp
 from optsolution import OptSolution
 from problem import Problem
+from itertools import starmap
+import copy
 
 __author__ = "Felice Schena"
 __copyright__ = "Copyright 2022 Felice Schena"
@@ -45,13 +46,11 @@ class VNS:
         """
         self.problem = problem
         self.solution = self.initialize_solution()
-        self.best = None
         self.fog_list = self.load_fog_service()
-        self.optsolution = OptSolution(self.solution, self.fog_list, problem)
-        self.c_solution = OptSolution(self.solution, self.fog_list, problem)
-        self.k = 1
-        self.check = 0
-
+        self.optsolution = OptSolution(copy.deepcopy(self.solution), copy.deepcopy(self.fog_list), problem)
+        self.c_solution = OptSolution(copy.deepcopy(self.solution), copy.deepcopy(self.fog_list), problem)
+        self.count = 0
+        self.best_count = 0
 
     def swap_microservice(self, f1, f2, idx_microservice_f1, idx_microservice_f2):
         """
@@ -76,55 +75,85 @@ class VNS:
     def neigborhood_change(self):
         """
         Check if the current solution is better than the best solution.
-        :param check: 1 if the solution is improved, 0 otherwise
         """
-        if self.c_solution.obj_func() < self.optsolution.obj_func():
-            self.optsolution = self.c_solution
-            self.best = self.solution
-            self.check = 1
-        return self.check
-
-    def perform_swap(self, element,element2):
-        self.find_fog([element,element2])
-        self.c_solution.mapping = self.solution
-        self.c_solution.loaded_fog = self.fog_list
+        self.count += 1
+        self.c_solution.resptimes = None
+        self.optsolution.resptimes = None
         self.c_solution.compute_fog_status()
-        self.neigborhood_change()
+        self.optsolution.compute_fog_status()
+        tr_tot_c = self.c_solution.obj_func()
+        tr_tot_o = self.optsolution.obj_func()
+        if tr_tot_c < tr_tot_o:
+            self.best_count = self.count
+            self.optsolution.mapping = copy.deepcopy(self.c_solution.mapping)
+            self.optsolution.loaded_fog = copy.deepcopy(self.c_solution.loaded_fog)
+            self.optsolution.compute_fog_status()
+            self.optsolution.resptimes = None
+            self.optsolution.obj_func()
+            return True
 
-    def perform_allocation(self, element,element2):
-        self.find_fog(element,element2)
-        self.c_solution.mapping = self.solution
-        self.c_solution.loaded_fog = self.fog_list
+    def perform_swap(self, element, element2):
+        temp = copy.deepcopy(self.solution)
+        self.find_fog([element, element2])
+        self.fog_list = self.load_fog_service()
+        self.c_solution.mapping = copy.deepcopy(self.solution)
+        self.c_solution.loaded_fog = copy.deepcopy(self.fog_list)
+        if self.neigborhood_change():
+            ret = True
+        else:
+            self.undo(temp)
+            ret = False
+        return ret
+
+    def undo(self, temp):
+        self.solution = copy.deepcopy(temp)
+        self.fog_list = self.load_fog_service()
+        self.c_solution.mapping = copy.deepcopy(self.solution)
+        self.c_solution.loaded_fog = copy.deepcopy(self.fog_list)
         self.c_solution.compute_fog_status()
-        self.neigborhood_change()
-        return None
+        self.c_solution.resptimes = None
+        self.c_solution.obj_func()
+
+    def perform_allocation(self, element, element2):
+        temp = copy.deepcopy(self.solution)
+        self.find_fog(element, element2)
+        self.fog_list = self.load_fog_service()
+        for i in self.solution.keys():
+            self.c_solution.mapping[i] = self.solution[i].copy()
+        self.c_solution.loaded_fog = self.fog_list.copy()
+        if self.neigborhood_change():
+            ret = True
+        else:
+            self.undo(temp)
+            ret = False
+        return ret
 
     def vnd(self):
         """
         Variable Neighborhood Descent function.
         :return: 1 if the solution is improved, 0 otherwise
         """
-        self.k = 1
-        self.check = 0
+        """
+        Variable Neighborhood Descent function.
+        :return: 1 if the solution is improved, 0 otherwise
+        """
+        k = 1
+        check = 0
         altered = 0
-        while self.k < 3:
-            self.check = 0
-            if self.k == 1:
+        while k < 3:
+            check = 0
+            if k == 1:
                 microservices = self.problem.get_microservice_list()
                 combinations = list(itertools.combinations(microservices, 2))
-                pool = mp.Pool()
-                pool.starmap(self.perform_swap,combinations)
-                pool.close()
-                self.k += 1
-            if self.k == 2:
+                ret = list(starmap(self.perform_swap, combinations))
+                k += 1
+            if k == 2:
                 microservices = self.problem.get_microservice_list()
                 fog = self.problem.get_fog_list()
                 unique_combinations = list(itertools.product(microservices, fog))
-                new_pool=mp.Pool()
-                new_pool.starmap(self.perform_allocation, unique_combinations)
-                new_pool.close()
-                self.k += 1
-            if self.check == 1:
+                ret1 = list(starmap(self.perform_allocation, unique_combinations))
+                k += 1
+            if True in ret or True in ret1:
                 k = 1
                 altered = 1
         return altered
@@ -144,6 +173,9 @@ class VNS:
                 self.structure2()
                 iter += 1
             if self.vnd() == 1:
+                self.optsolution.resptimes = None
+                self.optsolution.compute_fog_status()
+                self.optsolution.obj_func()
                 iter = 0
 
     def structure1(self):
@@ -186,9 +218,12 @@ class VNS:
             self.swap_microservice(f1, idx_f2, idx_microservice_f1, idx_microservice_f2)
         else:
             self.swap_microservice(f1, idx_f2, idx_microservice_f1, 0)
-        self.c_solution.mapping = self.solution
-        self.c_solution.loaded_fog = self.fog_list
+        self.c_solution.mapping = copy.deepcopy(self.solution)
+        self.fog_list = self.load_fog_service()
+        self.c_solution.loaded_fog = copy.deepcopy(self.fog_list)
         self.c_solution.compute_fog_status()
+        self.c_solution.resptimes = None
+        self.c_solution.obj_func()
 
     def structure2(self):
         """
@@ -196,11 +231,11 @@ class VNS:
         @:param self: the object vns
         :return:
         """
-        load = []
-        # vector of load of each fog node
+        self.c_solution.compute_fog_status()
+        load = []  # vector of load of each fog node
         for i in range(self.problem.get_nfog()):
-            if self.optsolution.fog[i]["mu"] != 0:
-                load.append(self.optsolution.fog[i]["lambda"] / self.optsolution.fog[i]["mu"])
+            if self.c_solution.fog[i]['mu'] != 0:
+                load.append(self.c_solution.fog[i]["lambda"] / self.c_solution.fog[i]["mu"])
             else:
                 load.append(0)
         nfog = self.problem.get_nfog()
@@ -212,20 +247,16 @@ class VNS:
         except ValueError:
             print("\n No fog node with load")
         # the next three methods are used to random choose fog with load higher than r
-        while True:
-            masked_load = np.ma.masked_less(load, r, copy=False)
-            pos = np.random.choice(masked_load.count(), size=1)
-            f1_idx = tuple(np.take((~masked_load.mask).nonzero(), pos, axis=1))
-            f1_idx = f1_idx[0][0]
-            if len(self.fog_list[f1_idx]) != 0:
-                break
+        masked_load = np.ma.masked_less(load, r, copy=False)
+        pos = np.random.choice(masked_load.count(), size=1)
+        f1_idx = tuple(np.take((~masked_load.mask).nonzero(), pos, axis=1))
+        f1_idx = f1_idx[0][0]
         # the fartest sensor allocated to f1
         temp = np.ma.masked_equal(self.get_microservice_latency(f1_idx), -1, copy=False)
         if len(temp) != 0:
             idx_microservice_f1 = np.argmax(temp)
         else:
             idx_microservice_f1 = 0
-
         # find the fog node with the lowest load and the closest from the selected fog node
         index = self.find_previous_microservice(re.findall(r'\d+', self.fog_list[f1_idx][idx_microservice_f1]))
         masked_load = np.ma.masked_greater(load, r, copy=False)
@@ -241,23 +272,12 @@ class VNS:
         idx_f2 = self.find_best(masked_load, masked_latency)
         index = re.findall(r'\d+', str(self.fog_list[f1_idx][idx_microservice_f1]))
         self.solution["SC" + index[0]]["MS" + index[0] + "_" + index[1]] = "F" + str(idx_f2 + 1)
+        self.c_solution.mapping = copy.deepcopy(self.solution)
         self.fog_list = self.load_fog_service()
-        self.c_solution.mapping = self.solution
-        self.c_solution.loaded_fog = self.fog_list
+        self.c_solution.loaded_fog = copy.deepcopy(self.fog_list)
         self.c_solution.compute_fog_status()
-
-    def find_fog(self, idx_microservice, fog=None):
-        if len(idx_microservice) == 2:
-            ms1 = re.findall(r'\d+', str(idx_microservice[0]))
-            temp = self.solution["SC" + ms1[0]]["MS" + ms1[0] + "_" + ms1[1]]
-            ms2 = re.findall(r'\d+', str(idx_microservice[1]))
-            self.solution["SC" + ms1[0]]["MS" + ms1[0] + "_" + ms1[1]] = self.solution["SC" + ms2[0]][
-                "MS" + ms2[0] + "_" + ms2[1]]
-            self.solution["SC" + ms2[0]]["MS" + ms2[0] + "_" + ms2[1]] = temp
-        else:
-            ms1 = re.findall(r'\d+', idx_microservice)
-            self.solution["SC" + ms1[0]]["MS" + ms1[0] + "_" + ms1[1]] = fog
-        self.fog_list = self.load_fog_service()
+        self.c_solution.resptimes = None
+        self.c_solution.obj_func()
 
     def find_best(self, load, latency):
         """
@@ -299,7 +319,6 @@ class VNS:
     def initialize_solution(self):
         """
         Initialize the solution of the VNS allocating service to fog nodes
-        :param problem: the problem to analyze loaded from Problem class
         :return: sf_solution
         """
         sf_solution = {}
@@ -325,6 +344,21 @@ class VNS:
                 index = re.findall(r'\d+', self.solution[i][j])
                 fog_service[int(index[0]) - 1].append(j)
         return fog_service
+
+    def find_fog(self, idx_microservice, fog=None):
+        if len(idx_microservice) == 2:
+            ms1 = re.findall(r'\d+', str(idx_microservice[0]))
+            temp = self.solution["SC" + ms1[0]]["MS" + ms1[0] + "_" + ms1[1]]
+            ms2 = re.findall(r'\d+', str(idx_microservice[1]))
+            self.solution["SC" + ms1[0]]["MS" + ms1[0] + "_" + ms1[1]] = self.solution["SC" + ms2[0]][
+                "MS" + ms2[0] + "_" + ms2[1]]
+            self.solution["SC" + ms2[0]]["MS" + ms2[0] + "_" + ms2[1]] = temp
+        else:
+            ms1 = re.findall(r'\d+', idx_microservice)
+            ret = self.solution["SC" + ms1[0]]["MS" + ms1[0] + "_" + ms1[1]]
+            self.solution["SC" + ms1[0]]["MS" + ms1[0] + "_" + ms1[1]] = fog
+            return ret, ms1[0], ms1[1]
+        self.fog_list = self.load_fog_service()
 
     def find_previous_microservice(self, index):
         """
@@ -370,12 +404,12 @@ class VNS:
         return latency
 
 
-def dump_solution(gaout, sol, deltatime):
+def dump_solution(gaout, sol, deltatime, conv):
     """
     Dump the solution of the vns to a file
     """
     with open(gaout, "w+") as f:
-        json.dump(sol.dump_solution(deltatime), f, indent=2)
+        json.dump(sol.dump_solution(deltatime, conv), f, indent=2)
 
 
 def solve_problem(data):
@@ -386,10 +420,15 @@ def solve_problem(data):
     deltatime = Decimal(Decimal(time.time()) - ts)
     resp = data['response']
     if resp.startswith('file://'):
-        dump_solution(resp.lstrip('file://'), vns.optsolution, float(deltatime))
+        if vns.best_count != 0:
+            dump_solution(resp.lstrip('file://'), vns.optsolution, float(deltatime), float(vns.count / vns.best_count))
+        else:
+            dump_solution(resp.lstrip('file://'), vns.optsolution, float(deltatime), 0)
     else:
-        # use requests package to send results
-        requests.post(data['response'], json=vns.optsolution.dump_solution(float(deltatime)))
+        if vns.best_count != 0:
+            requests.post(data['response'],json=vns.optsolution.dump_solution(float(deltatime), float(vns.count / vns.best_count)))
+        else:
+            requests.post(data['response'],json=vns.optsolution.dump_solution(float(deltatime), 0))
 
 
 if __name__ == '__main__':

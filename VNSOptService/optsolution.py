@@ -134,7 +134,7 @@ class OptSolution:
             tr_tot += self.resptimes[sc]['resptime'] * self.problem.servicechain[sc]['weight']
         return tr_tot
 
-    def dump_solution(self ,deltatime):
+    def dump_solution(self ,deltatime,conv):
         self.extra_param={"deltatime":deltatime}
         if self.resptimes is None:
             self.obj_func()
@@ -162,7 +162,7 @@ class OptSolution:
                     rv['sensor'][s] = self.mapping[i].get(temp)
         for f in self.fog:
             rv['fog'][f['name']]={'rho': f['rho'], 'capacity': self.problem.get_fog(f['name'])['capacity']}
-        rv['extra']=self.extra_param
+        rv['extra']={'conv_gen':conv,'deltatime':deltatime}
         if not self.problem.network_is_fake:
             rv['network']=self.problem.network_as_matrix()
         return rv
