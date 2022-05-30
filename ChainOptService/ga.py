@@ -16,10 +16,10 @@ from deap import creator
 from deap import tools
 from deap import algorithms
 
-#numGen = 600    # number fo generations used in the GA
-#numPop = 600    # initial number of individuals at gen0
-numGen = 60    # number fo generations used in the GA
-numPop = 60    # initial number of individuals at gen0
+numGen = 300    # number fo generations used in the GA
+numPop = 400    # initial number of individuals at gen0
+#numGen = 60    # number fo generations used in the GA
+#numPop = 60    # initial number of individuals at gen0
 problem=None
 
 def obj_func(individual1):

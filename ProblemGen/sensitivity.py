@@ -158,18 +158,18 @@ def run_experiment(par, values, nrun, config, mult, outfile):
                     except ValueError:
                         print('Error', end='')
 
-                sys.stdout.flush()
-                # parse results
-                r = parse_result(fname)
-                if r is not None and al=='ga_results':
-                    res.append(r)
-                    print('+', end='')
-                else:
-                    if r is not None and al=='vns_results':
-                        resvns.append(r)
+                    sys.stdout.flush()
+                    # parse results
+                    r = parse_result(fname)
+                    if r is not None and al=='ga_results':
+                        res.append(r)
                         print('+', end='')
                     else:
-                        print('X', end='')
+                        if r is not None and al=='vns_results':
+                            resvns.append(r)
+                            print('+', end='')
+                        else:
+                            print('X', end='')
                 sys.stdout.flush()
             # newline
             print()
